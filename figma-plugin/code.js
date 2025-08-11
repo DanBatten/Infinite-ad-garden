@@ -663,8 +663,8 @@ figma.ui.onmessage = async (msg) => {
 
   const jobId = (msg.jobId || "").trim();
   const mode  = msg.mode || "batch";
-  const cols  = Number.isFinite(msg.cols) ? msg.cols : 5;
-  const gap   = Number.isFinite(msg.gap)  ? msg.gap  : 120;
+  const template = msg.template || `Template/${job.format}`;
+  
 
   try {
     const BASE = "http://localhost:8001";
@@ -678,7 +678,7 @@ figma.ui.onmessage = async (msg) => {
     console.log(`[Plugin] Job format: ${job.format}, variants: ${(job.variants && job.variants.length) || 0}`);
 
     // Match your strategy.format; your main.py sets layout = `Template/${format}`
-    const templateName = `Template/${job.format}`;
+    const templateName = msg.template || `Template/${job.format}`;
     console.log(`[Plugin] Looking for template: ${templateName}`);
     
     const template = findTemplate(templateName);
@@ -694,14 +694,14 @@ figma.ui.onmessage = async (msg) => {
     let i = 0;
 
     if (mode === "batch") {
-      const rows = Math.ceil(job.variants.length / cols);
-      const pad  = gap; // tweak if you want more/less margin
+      const rows = Math.ceil(job.variants.length / 5); // Default to 5 columns
+      const pad  = 120; // Default gap of 120px
       const batch = ensureBatchFrame(job.job_id || jobId, template, cols, rows, gap, pad);
 
       for (const v of job.variants) {
         const frame = await buildVariant(template, v);
         batch.appendChild(frame);
-        positionFrameInGrid(frame, cellW, cellH, i, cols, gap, pad);
+        positionFrameInGrid(frame, cellW, cellH, i, 5, 120, pad);
         i++;
       }
       figma.currentPage.selection = [batch];
@@ -713,7 +713,7 @@ figma.ui.onmessage = async (msg) => {
         const frame = await buildVariant(template, v);
         frame.x = template.x;
         frame.y = template.y + template.height + gap;
-        positionFrameInGrid(frame, cellW, cellH, startIndex + i, cols, gap, gap);
+        positionFrameInGrid(frame, cellW, cellH, startIndex + i, 5, 120, 120);
         i++;
       }
       figma.notify(`Infinite Ad Garden: built ${i} variants (continued grid)`);

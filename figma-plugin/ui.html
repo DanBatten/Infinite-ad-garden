@@ -100,15 +100,6 @@
         box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
       }
       
-      .row {
-        display: flex;
-        gap: 12px;
-      }
-      
-      .row > div {
-        flex: 1;
-      }
-      
       button {
         width: 100%;
         padding: 10px 16px;
@@ -267,15 +258,9 @@
           </select>
         </div>
         
-        <div class="row">
-          <div class="input-group">
-            <label>Columns</label>
-            <input id="cols" type="number" value="5" min="1" max="12" />
-          </div>
-          <div class="input-group">
-            <label>Gap (px)</label>
-            <input id="gap" type="number" value="120" min="0" max="1000" />
-          </div>
+        <div class="input-group">
+          <label>Template Name</label>
+          <input id="template" placeholder="e.g. Template/1080x1350" value="Template/1080x1350" />
         </div>
         
         <button id="run">Generate Ads</button>
@@ -348,9 +333,8 @@
       document.getElementById('run').onclick = () => {
         const jobId = (document.getElementById('job')?.value || "").trim();
         const mode = (document.getElementById('mode')?.value || "batch");
-        const cols = parseInt(document.getElementById('cols')?.value || "5", 10);
-        const gap = parseInt(document.getElementById('gap')?.value || "120", 10);
-        parent.postMessage({ pluginMessage: { type: 'run-job', jobId, mode, cols, gap } }, '*');
+        const template = (document.getElementById('template')?.value || "Template/1080x1350").trim();
+        parent.postMessage({ pluginMessage: { type: 'run-job', jobId, mode, template } }, '*');
       };
       
       document.getElementById('clear').onclick = () => {
