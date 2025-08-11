@@ -1,0 +1,13 @@
+{
+  "name": "Infinite Ad Garden",
+  "id": "com.yourco.adfactory",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "reasoning": "Local dev server",
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["http://localhost:8001"]
+  }
+}
