@@ -696,7 +696,7 @@ figma.ui.onmessage = async (msg) => {
     if (mode === "batch") {
       const rows = Math.ceil(job.variants.length / 5); // Default to 5 columns
       const pad  = 120; // Default gap of 120px
-      const batch = ensureBatchFrame(job.job_id || jobId, template, cols, rows, gap, pad);
+      const batch = ensureBatchFrame(job.job_id || jobId, template, 5, rows, 120, pad);
 
       for (const v of job.variants) {
         const frame = await buildVariant(template, v);
@@ -712,7 +712,7 @@ figma.ui.onmessage = async (msg) => {
       for (const v of job.variants) {
         const frame = await buildVariant(template, v);
         frame.x = template.x;
-        frame.y = template.y + template.height + gap;
+        frame.y = template.y + template.height + 120;
         positionFrameInGrid(frame, cellW, cellH, startIndex + i, 5, 120, 120);
         i++;
       }
@@ -722,6 +722,10 @@ figma.ui.onmessage = async (msg) => {
     // Send success status to UI
     figma.ui.postMessage({
       type: 'status',
+      data: {
+        adCount: i,
+        imageCount: 0
+      },
       message: `Successfully generated ${i} ad variants!`,
       status: 'success'
     });
