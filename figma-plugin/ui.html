@@ -50,32 +50,23 @@
       
       .main-content {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
-        gap: 16px;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: auto auto;
+        gap: 12px;
         padding: 0 20px 16px 20px;
-        max-width: 1400px;
+        width: 850px;
         margin: 0 auto;
       }
-
-      /* Responsive design for smaller screens */
-      @media (max-width: 1200px) {
-        .main-content {
-          grid-template-columns: 1fr 1fr;
-          max-width: 900px;
-        }
-      }
-
-      @media (max-width: 768px) {
-        .main-content {
-          grid-template-columns: 1fr;
-          max-width: 500px;
-        }
+      
+      /* Make the Image Engine span all 3 columns */
+      .main-content .section:nth-child(4) {
+        grid-column: 1 / -1;
       }
       
       .section {
         background: white;
         border-radius: 6px;
-        padding: 20px;
+        padding: 16px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         border: 1px solid rgba(0,0,0,0.05);
       }
@@ -84,13 +75,13 @@
         font-size: 14px;
         font-weight: 600;
         color: rgba(var(--fg), 0.8);
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
       
       .input-group {
-        margin-bottom: 16px;
+        margin-bottom: 12px;
       }
       
       label {
@@ -393,14 +384,15 @@
         color: rgba(var(--fg), 0.9);
       }
 
-      .button-group {
+            .button-group {
         display: flex;
-        gap: 8px;
-        margin-top: 12px;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 10px;
       }
-
+      
       .button-group button {
-        flex: 1;
+        width: 100%;
         margin-top: 0;
       }
       
@@ -504,7 +496,6 @@
         </div>
         
         <button id="generateClaims" class="primary-button">Generate Claims</button>
-        <button id="viewClaims" class="secondary-button" disabled>View Claims</button>
         
         <!-- Loading State -->
         <div id="loadingState" class="loading-state" style="display: none;">
@@ -542,13 +533,7 @@
           <input id="job" placeholder="e.g. a1b2c3d4" />
         </div>
         
-        <div class="input-group">
-          <label>Layout Mode</label>
-          <select id="mode">
-            <option value="batch">Batch Frame</option>
-            <option value="continue">Continue Grid</option>
-          </select>
-        </div>
+
         
         <div class="input-group">
           <label>Template Name</label>
@@ -605,7 +590,6 @@
       
       // Main functionality
       const generateClaimsBtn = document.getElementById('generateClaims');
-      const viewClaimsBtn = document.getElementById('viewClaims');
       const loadingState = document.getElementById('loadingState');
       const claimsDisplay = document.getElementById('claimsDisplay');
       const claimsList = document.getElementById('claimsList');
@@ -627,17 +611,13 @@
         };
       }
       
-      if (viewClaimsBtn) {
-        viewClaimsBtn.onclick = () => {
-          parent.postMessage({ pluginMessage: { type: 'view-claims' } }, '*');
-        };
-      }
+
       
       const runBtn = document.getElementById('run');
       if (runBtn) {
         runBtn.onclick = () => {
           const jobId = (document.getElementById('job')?.value || "").trim();
-          const mode = (document.getElementById('mode')?.value || "batch");
+          const mode = "batch";
           const template = (document.getElementById('template')?.value || "Template/1080x1440").trim();
           parent.postMessage({ pluginMessage: { type: 'run-job', jobId, mode, template } }, '*');
         };
@@ -838,7 +818,7 @@
           if (type === 'claims-generated') {
             loadingState.style.display = 'none';
             generateClaimsBtn.disabled = false;
-            viewClaimsBtn.disabled = false;
+    
             
             // Store claims for viewing
             window.generatedClaims = message.claims;
