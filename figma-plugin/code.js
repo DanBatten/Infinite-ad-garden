@@ -288,6 +288,9 @@ class ImageMatcher {
 // Initialize image matcher
 const imageMatcher = new ImageMatcher();
 
+// Session counter for unique frame names
+let sessionRunCounter = 0;
+
 // Make functions globally accessible for console testing
 globalThis.imageMatcher = imageMatcher;
 globalThis.scanImages = () => imageMatcher.scanForTaggedImages();
@@ -295,6 +298,8 @@ globalThis.testHeadline = (headline) => imageMatcher.findBestImageForHeadline(he
 globalThis.debugMatching = () => debugImageMatching();
 globalThis.getThreshold = () => imageMatcher.threshold;
 globalThis.setThreshold = (threshold) => imageMatcher.updateThreshold(threshold);
+globalThis.getSessionCounter = () => sessionRunCounter;
+globalThis.resetSessionCounter = () => { sessionRunCounter = 0; console.log('Session counter reset to 0'); };
 
 // Function to place best matching image in ad
 async function placeBestImageForHeadline(headline, targetFrame) {
@@ -707,7 +712,8 @@ figma.ui.onmessage = async (msg) => {
     if (mode === "batch") {
       const rows = Math.ceil(job.variants.length / 5); // Default to 5 columns
       const pad  = 120; // Default gap of 120px
-      const batch = ensureBatchFrame(job.job_id || jobId, template, 5, rows, 120, pad);
+      sessionRunCounter++; // Increment counter for unique frame names
+      const batch = ensureBatchFrame(`${job.job_id || jobId}_run${sessionRunCounter}`, template, 5, rows, 120, pad);
 
       for (const v of job.variants) {
         const frame = await buildVariant(template, v);
@@ -717,17 +723,20 @@ figma.ui.onmessage = async (msg) => {
       }
       figma.currentPage.selection = [batch];
       figma.viewport.scrollAndZoomIntoView([batch]);
-      figma.notify(`Built ${i} variants into Batch/${job.job_id || jobId}`);
+      figma.notify(`Built ${i} variants into Batch/${job.job_id || jobId}_run${sessionRunCounter}`);
     } else {
       const startIndex = existingVariantCount("Ad/");
+      sessionRunCounter++; // Increment counter for unique frame names
       for (const v of job.variants) {
         const frame = await buildVariant(template, v);
         frame.x = template.x;
         frame.y = template.y + template.height + 120;
+        // Add run counter to frame name to avoid conflicts
+        frame.name = `${frame.name}_run${sessionRunCounter}`;
         positionFrameInGrid(frame, cellW, cellH, startIndex + i, 5, 120, 120);
         i++;
       }
-      figma.notify(`Infinite Ad Garden: built ${i} variants (continued grid)`);
+      figma.notify(`Infinite Ad Garden: built ${i} variants (continued grid, run ${sessionRunCounter})`);
     }
 
     // Send success status to UI
@@ -770,7 +779,10 @@ figma.ui.onmessage = async (msg) => {
         frame.remove();
       }
       
-      figma.notify(`Cleared ${adFrames.length} ad frames`);
+      // Reset session counter when clearing all
+      sessionRunCounter = 0;
+      
+      figma.notify(`Cleared ${adFrames.length} ad frames and reset session counter`);
       
       // Send success status to UI
       figma.ui.postMessage({
