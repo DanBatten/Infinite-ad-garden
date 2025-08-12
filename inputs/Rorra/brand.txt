@@ -1,0 +1,5 @@
+Brand: Rorra
+Product: Countertop water filter
+Ingredients: 
+Headline Font: Inter
+Body Copy Font: Inter
