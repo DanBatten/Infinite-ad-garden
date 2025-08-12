@@ -817,9 +817,8 @@ async function buildVariant(template, v) {
         
         console.log(`🖼️ Using fallback product image for headline: "${v.headline}"`);
       } else {
-        // Last resort: use URL-based image
-        await placeImageFill(hero, v.image_url);
-        console.log(`🖼️ Using URL image as last resort for headline: "${v.headline}"`);
+        // No suitable image found - keep the original hero rectangle
+        console.log(`⚠️ No suitable image found for headline: "${v.headline}" - using default hero`);
       }
     }
   } catch (error) {
@@ -836,12 +835,10 @@ async function buildVariant(template, v) {
         hero.visible = false;
         console.log(`🖼️ Using fallback product image after error for headline: "${v.headline}"`);
       } else {
-        await placeImageFill(hero, v.image_url);
-        console.log(`🖼️ Using URL image after error for headline: "${v.headline}"`);
+        console.log(`⚠️ No fallback image available for headline: "${v.headline}" - using default hero`);
       }
     } catch (fallbackError) {
-      await placeImageFill(hero, v.image_url);
-      console.log(`🖼️ Using URL image as final fallback for headline: "${v.headline}"`);
+      console.log(`⚠️ All image placement failed for headline: "${v.headline}" - using default hero`);
     }
   }
 

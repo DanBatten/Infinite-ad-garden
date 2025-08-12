@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 
 from orchestrator.storage import save_job
 from orchestrator.compliance import validate_claim
-from orchestrator.generators import image_brief, generate_image_url
+
 
 def load_json(p: str) -> Dict[str, Any]:
     return json.load(open(p, "r", encoding="utf-8"))
@@ -135,8 +135,7 @@ def main():
                     "cta": "Learn More",
                 }
 
-            brief = image_brief(brand, claim, strategy)
-            img_url = generate_image_url(brief, variant_id=str(idx))
+
 
             variants.append({
                 "id": str(uuid.uuid4())[:8],
@@ -145,7 +144,6 @@ def main():
                 "headline": copy["headline"],
                 "byline": copy["byline"],
                 "cta": copy["cta"],
-                "image_url": img_url,
                 "logo_url": brand["logo_url"],
                 "palette": brand["palette"],
                 "type": brand["type"],
