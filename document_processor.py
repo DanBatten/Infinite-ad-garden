@@ -655,12 +655,29 @@ def main():
         print("Please set your OpenAI API key in a .env file")
         return
     
+    # Get brand name from command line arguments
+    import sys
+    if len(sys.argv) > 1:
+        brand_name = sys.argv[1]
+    else:
+        brand_name = "Metra"  # Default fallback
+    
     processor = DocumentProcessor()
     
     # Brand configuration
-    brand_name = "Metra"
     brand_folder = f"inputs/{brand_name}"
     brand_docs_path = f"{brand_folder}/brand_docs"
+    
+    # Check if brand folder and docs exist
+    if not os.path.exists(brand_folder):
+        print(f"❌ Brand folder not found: {brand_folder}")
+        print(f"Please create the folder structure: inputs/{brand_name}/brand_docs/")
+        return
+    
+    if not os.path.exists(brand_docs_path):
+        print(f"❌ Brand documents folder not found: {brand_docs_path}")
+        print(f"Please add your brand documents to: inputs/{brand_name}/brand_docs/")
+        return
     
     # Process brand documents
     print(f"🔄 Processing {brand_name} brand documents...")

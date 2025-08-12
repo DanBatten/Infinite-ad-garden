@@ -161,9 +161,9 @@ def process_documents():
         
         print(f"🔄 Processing documents for brand: {brand_name}")
         
-        # Run the document processor
+        # Run the document processor with the specific brand name
         result = subprocess.run(
-            ['python3', 'document_processor.py'],
+            ['python3', 'document_processor.py', brand_name],
             capture_output=True,
             text=True,
             cwd=os.getcwd(),
