@@ -827,7 +827,7 @@ figma.ui.onmessage = async (msg) => {
       figma.ui.postMessage({ type: 'show-loading' });
       
       // Call the claims API
-      fetch('http://localhost:5001/generate-claims', {
+      fetch('http://localhost:8002/generate-claims', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

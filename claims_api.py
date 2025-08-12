@@ -26,7 +26,8 @@ def generate_claims():
             ['python3', 'orchestrator/main.py'],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
+            env={**os.environ, 'PYTHONPATH': os.getcwd()}
         )
         
         if result.returncode != 0:
@@ -88,5 +89,5 @@ if __name__ == '__main__':
     print("🚀 Starting Claims API server...")
     print("   - POST /generate-claims - Generate new claims")
     print("   - GET  /health - Health check")
-    print("   - Server will run on http://localhost:5001")
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    print("   - Server will run on http://localhost:8002")
+    app.run(host='0.0.0.0', port=8002, debug=True)
