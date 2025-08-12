@@ -51,17 +51,13 @@
       .main-content {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: auto auto;
         gap: 12px;
         padding: 0 20px 16px 20px;
         width: 850px;
         margin: 0 auto;
       }
       
-      /* Make the Image Engine span all 3 columns */
-      .main-content .section:nth-child(4) {
-        grid-column: 1 / -1;
-      }
+
       
       .section {
         background: white;
@@ -540,37 +536,19 @@
           <input id="template" placeholder="e.g. Template/1080x1440" value="Template/1080x1440" />
         </div>
         
-        <button id="run">Generate Ads</button>
-        <button id="clear" class="secondary-button">Clear All</button>
-        
-        <div class="stats-card">
-          <div class="stats-number" id="adCount">0</div>
-          <div class="stats-label">Ad Variants</div>
-        </div>
-      </div>
-      
-      <!-- Image Engine Section -->
-      <div class="section">
-        <div class="section-title">🖼️ Image Engine</div>
-        
-        <div class="description">
-          Automatically matches ad headlines with relevant images from your asset library using AI-powered tagging.
-        </div>
-        
         <div class="threshold-container">
-          <label>Matching Threshold</label>
+          <label>Image Matching Threshold</label>
           <input type="range" class="threshold-slider" id="threshold" min="0" max="100" value="70" />
           <div class="threshold-value" id="thresholdValue">70%</div>
         </div>
         
-        <button id="scanImages" class="secondary-button">Scan Images</button>
-        <button id="testMatching" class="secondary-button">Test Matching</button>
+        <button id="run" class="primary-button">Generate Ads</button>
+        <button id="clear" class="secondary-button">Clear All</button>
         
-        <div class="stats-card">
-          <div class="stats-number" id="imageCount">0</div>
-          <div class="stats-label">Tagged Images</div>
-        </div>
+
       </div>
+      
+
     </div>
     
     <!-- Garden Image Section (separate module below) -->
@@ -579,14 +557,7 @@
     </div>
     
     <script>
-      // Threshold slider
-      const thresholdSlider = document.getElementById('threshold');
-      const thresholdValue = document.getElementById('thresholdValue');
-      thresholdSlider.addEventListener('input', (e) => {
-        thresholdValue.textContent = e.target.value + '%';
-        // Send threshold update to plugin
-        parent.postMessage({ pluginMessage: { type: 'update-threshold', threshold: parseInt(e.target.value) } }, '*');
-      });
+
       
       // Main functionality
       const generateClaimsBtn = document.getElementById('generateClaims');
@@ -630,20 +601,19 @@
         };
       }
       
-      const scanImagesBtn = document.getElementById('scanImages');
-      if (scanImagesBtn) {
-        scanImagesBtn.onclick = () => {
-          parent.postMessage({ pluginMessage: { type: 'scan-images' } }, '*');
-        };
+
+
+      // Threshold slider functionality
+      const thresholdSlider = document.getElementById('threshold');
+      const thresholdValue = document.getElementById('thresholdValue');
+      if (thresholdSlider && thresholdValue) {
+        thresholdSlider.addEventListener('input', (e) => {
+          thresholdValue.textContent = e.target.value + '%';
+          // Send threshold update to plugin
+          parent.postMessage({ pluginMessage: { type: 'update-threshold', threshold: parseInt(e.target.value) } }, '*');
+        });
       }
       
-      const testMatchingBtn = document.getElementById('testMatching');
-      if (testMatchingBtn) {
-        testMatchingBtn.onclick = () => {
-          parent.postMessage({ pluginMessage: { type: 'test-matching' } }, '*');
-        };
-      }
-
       // Copy Job ID functionality
       const copyJobIdBtn = document.getElementById('copyJobId');
       if (copyJobIdBtn) {
