@@ -319,36 +319,37 @@
         background: #a8a8a8;
       }
 
-      .job-id-display {
-        background: white;
-        border-radius: 8px;
-        padding: 16px;
+
+
+      .success-message {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 6px;
+        padding: 12px;
         margin-top: 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
       }
 
-      .job-id-container {
+      .success-content {
         display: flex;
-        gap: 8px;
+        flex-direction: column;
         align-items: center;
-        margin-bottom: 8px;
+        gap: 8px;
       }
 
-      .job-id-container input {
-        flex: 1;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-family: monospace;
+      .success-icon {
+        font-size: 20px;
+      }
+
+      .success-text {
         font-size: 14px;
-        background: #f8f9fa;
+        font-weight: 600;
+        color: #155724;
       }
 
-      .job-id-note {
+      .job-id-text {
         font-size: 12px;
-        color: #666;
-        margin: 0;
-        font-style: italic;
+        color: #155724;
       }
 
       /* Brand Management Styles */
@@ -498,14 +499,13 @@
           <p>Generating claims... This may take several minutes.</p>
         </div>
         
-                        <!-- Job ID Display -->
-                <div id="jobIdDisplay" class="job-id-display" style="display: none;">
-                  <h4>Generated Job ID</h4>
-                  <div class="job-id-container">
-                    <input type="text" id="generatedJobId" readonly value="" />
-                    <button id="copyJobId" class="secondary-button">Copy</button>
+                        <!-- Success Message with Job ID -->
+                <div id="successMessage" class="success-message" style="display: none;">
+                  <div class="success-content">
+                    <span class="success-icon">✅</span>
+                    <span class="success-text">Claims generated successfully!</span>
+                    <span class="job-id-text">Job ID: <strong id="displayJobId"></strong></span>
                   </div>
-                  <p class="job-id-note">Use this Job ID in the Ad Generation section</p>
                 </div>
 
                 <!-- Claims Display -->
@@ -613,19 +613,7 @@
         });
       }
       
-      // Copy Job ID functionality
-      const copyJobIdBtn = document.getElementById('copyJobId');
-      if (copyJobIdBtn) {
-        copyJobIdBtn.onclick = () => {
-          const jobIdInput = document.getElementById('generatedJobId');
-          jobIdInput.select();
-          document.execCommand('copy');
-          copyJobIdBtn.textContent = 'Copied!';
-          setTimeout(() => {
-            copyJobIdBtn.textContent = 'Copy';
-          }, 2000);
-        };
-      }
+
       
       // Brand Management functionality
       const brandSelector = document.getElementById('brandSelector');
@@ -823,9 +811,9 @@
               window.lastGeneratedJobId = jobId;
               console.log('Job ID stored:', jobId);
               
-              // Show job ID display
-              document.getElementById('generatedJobId').value = jobId;
-              document.getElementById('jobIdDisplay').style.display = 'block';
+              // Show success message with job ID
+              document.getElementById('displayJobId').textContent = jobId;
+              document.getElementById('successMessage').style.display = 'block';
               
               // Auto-populate the Ad Generation Job ID field
               const adGenerationJobIdField = document.getElementById('job');

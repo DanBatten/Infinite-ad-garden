@@ -6,32 +6,33 @@ class ImageMatcher {
     this.imageAssets = [];
     this.threshold = 70; // Default threshold (70%)
     this.tagWeights = {
-      // Category weights
+      // Generic category weights (brand-agnostic)
       'lifestyle': 3,
       'product': 2,
       'portrait': 2,
       'abstract': 1,
+      'hero': 2,
+      'background': 1,
+      'supporting': 1,
       
-      // Mood/Style weights
-      'fitness': 2,
+      // Generic mood/style weights
       'sophisticated': 2,
       'playful': 1.5,
       'serene': 1.5,
       'empowering': 2,
       'natural': 1.5,
+      'modern': 2,
+      'classic': 1.5,
+      'vibrant': 1.5,
+      'minimal': 1.5,
       
-      // Content weights
+      // Generic content weights
       'model': 2,
-      'supplement_bottle': 2,
-      'capsules': 1.5,
-      'yoga_pose': 1.5,
-      'hair_care': 1.5,
-      
-      // Context weights
-      'product': 2,
-      'background': 1,
-      'hero': 2,
-      'supporting': 1
+      'person': 2,
+      'object': 1.5,
+      'scene': 1.5,
+      'texture': 1,
+      'pattern': 1
     };
   }
 
@@ -119,43 +120,37 @@ class ImageMatcher {
     const categoryBonus = this.getCategoryBonus(imageTags, headlineLower);
     score += categoryBonus;
     
-    // Add bonus for mood/style relevance
-    const moodBonus = this.getMoodBonus(imageTags, headlineLower);
-    score += moodBonus;
+
     
     return score;
   }
 
-  // Get semantic matches (e.g., "beauty" matches "beautiful", "wellness" matches "healthy")
+  // Get semantic matches (brand-agnostic)
   getSemanticMatches(tag, headline) {
     const semanticMap = {
-      // Beauty & Wellness
-      'beauty': ['glow', 'radiant', 'radiance', 'beautiful', 'attractive', 'gorgeous', 'stunning', 'skin', 'complexion'],
-      'wellness': ['healthy', 'well', 'vitality', 'energy', 'boost', 'nourish', 'nourishing', 'transform'],
-      'lifestyle': ['routine', 'daily', 'everyday', 'lifestyle', 'living', 'balance', 'harmony'],
-      
-      // Product & Ingredients
-      'product': ['supplement', 'capsule', 'bottle', 'ingredient', 'formula', 'blend', 'solution'],
-      'ingredients': ['ingredient', 'extract', 'natural', 'organic', 'pure', 'clean', 'authentic'],
-      'pills': ['capsule', 'pill', 'supplement', 'tablet', 'dose'],
+      // Generic categories
+      'lifestyle': ['routine', 'daily', 'everyday', 'lifestyle', 'living', 'balance', 'harmony', 'way', 'approach'],
+      'product': ['product', 'item', 'solution', 'service', 'offering', 'option', 'choice'],
+      'portrait': ['person', 'individual', 'you', 'your', 'self', 'people', 'person'],
       
       // Mood & Style
-      'vibey': ['vibrant', 'energetic', 'dynamic', 'lively', 'exciting', 'powerful', 'transformative'],
-      'sophisticated': ['elegant', 'premium', 'luxury', 'refined', 'classy', 'upscale', 'high-end'],
-      'natural': ['organic', 'pure', 'clean', 'authentic', 'earth', 'botanical', 'plant-based'],
+      'sophisticated': ['elegant', 'premium', 'luxury', 'refined', 'classy', 'upscale', 'high-end', 'professional'],
+      'playful': ['fun', 'enjoyable', 'entertaining', 'amusing', 'lighthearted', 'cheerful'],
+      'serene': ['calm', 'peaceful', 'tranquil', 'relaxed', 'gentle', 'smooth'],
+      'empowering': ['confident', 'strong', 'powerful', 'inspiring', 'motivational', 'encouraging'],
+      'natural': ['organic', 'pure', 'clean', 'authentic', 'earth', 'botanical', 'plant-based', 'genuine'],
+      'modern': ['contemporary', 'current', 'trendy', 'innovative', 'advanced', 'cutting-edge'],
+      'classic': ['traditional', 'timeless', 'enduring', 'established', 'proven', 'reliable'],
+      'vibrant': ['vibrant', 'energetic', 'dynamic', 'lively', 'exciting', 'colorful', 'bright'],
+      'minimal': ['simple', 'clean', 'minimalist', 'uncluttered', 'focused', 'essential'],
       
-      // Fitness & Health
-      'fitness': ['fit', 'healthy', 'strong', 'active', 'workout', 'exercise', 'energy', 'vitality'],
-      'health': ['healthy', 'wellness', 'well-being', 'vitality', 'strength', 'energy'],
-      
-      // Model & Person
-      'model': ['person', 'woman', 'lady', 'individual', 'you', 'your', 'self'],
-      
-      // Specific Benefits
-      'hair': ['hair', 'locks', 'tresses', 'mane', 'follicle'],
-      'skin': ['skin', 'complexion', 'dermis', 'epidermis', 'texture'],
-      'mood': ['mood', 'emotion', 'feeling', 'happiness', 'joy', 'confidence'],
-      'energy': ['energy', 'vitality', 'strength', 'power', 'boost', 'recharge']
+      // Generic content
+      'model': ['person', 'individual', 'you', 'your', 'self', 'people'],
+      'person': ['individual', 'you', 'your', 'self', 'people', 'person'],
+      'object': ['item', 'thing', 'element', 'piece', 'component'],
+      'scene': ['setting', 'environment', 'background', 'atmosphere', 'mood'],
+      'texture': ['texture', 'surface', 'feel', 'tactile', 'material'],
+      'pattern': ['pattern', 'design', 'arrangement', 'structure', 'layout']
     };
     
     const matches = semanticMap[tag] || [];
@@ -170,30 +165,38 @@ class ImageMatcher {
     return score;
   }
 
-  // Get bonus for category relevance
+  // Get bonus for category relevance (brand-agnostic)
   getCategoryBonus(imageTags, headline) {
     let bonus = 0;
     
-    // Beauty/Wellness headlines get bonus for lifestyle/product images
-    if (headline.includes('glow') || headline.includes('radiant') || headline.includes('beauty') || 
-        headline.includes('skin') || headline.includes('transform') || headline.includes('nourish')) {
-      if (imageTags.includes('lifestyle') || imageTags.includes('product') || imageTags.includes('ingredients')) {
+    // Generic lifestyle/product bonuses
+    if (headline.includes('lifestyle') || headline.includes('daily') || headline.includes('routine') || 
+        headline.includes('way') || headline.includes('approach')) {
+      if (imageTags.includes('lifestyle') || imageTags.includes('portrait')) {
         bonus += 2;
       }
     }
     
-    // Fitness/Energy headlines get bonus for fitness/lifestyle images
-    if (headline.includes('energy') || headline.includes('boost') || headline.includes('vitality') || 
-        headline.includes('strength') || headline.includes('active')) {
-      if (imageTags.includes('fitness') || imageTags.includes('lifestyle')) {
+    // Generic product/service bonuses
+    if (headline.includes('product') || headline.includes('service') || headline.includes('solution') || 
+        headline.includes('offering') || headline.includes('option')) {
+      if (imageTags.includes('product') || imageTags.includes('object')) {
         bonus += 2;
       }
     }
     
-    // Natural/Organic headlines get bonus for natural/ingredient images
+    // Generic mood/style bonuses
+    if (headline.includes('sophisticated') || headline.includes('premium') || headline.includes('luxury') || 
+        headline.includes('professional') || headline.includes('elegant')) {
+      if (imageTags.includes('sophisticated') || imageTags.includes('modern')) {
+        bonus += 2;
+      }
+    }
+    
+    // Generic natural/organic bonuses
     if (headline.includes('natural') || headline.includes('organic') || headline.includes('pure') || 
-        headline.includes('ingredient') || headline.includes('extract')) {
-      if (imageTags.includes('natural') || imageTags.includes('ingredients') || imageTags.includes('vibey')) {
+        headline.includes('authentic') || headline.includes('genuine')) {
+      if (imageTags.includes('natural') || imageTags.includes('texture')) {
         bonus += 2;
       }
     }
@@ -201,28 +204,7 @@ class ImageMatcher {
     return bonus;
   }
 
-  // Get bonus for mood/style relevance
-  getMoodBonus(imageTags, headline) {
-    let bonus = 0;
-    
-    // Sophisticated/premium headlines get bonus for sophisticated images
-    if (headline.includes('premium') || headline.includes('luxury') || headline.includes('elegant') || 
-        headline.includes('refined') || headline.includes('upscale')) {
-      if (imageTags.includes('sophisticated') || imageTags.includes('direct')) {
-        bonus += 1.5;
-      }
-    }
-    
-    // Dynamic/energetic headlines get bonus for vibey images
-    if (headline.includes('transform') || headline.includes('supercharge') || headline.includes('elevate') || 
-        headline.includes('powerful') || headline.includes('dynamic')) {
-      if (imageTags.includes('vibey') || imageTags.includes('playful')) {
-        bonus += 1.5;
-      }
-    }
-    
-    return bonus;
-  }
+
 
   // Find best matching image for a headline
   findBestImageForHeadline(headline) {
@@ -299,6 +281,21 @@ globalThis.debugMatching = () => debugImageMatching();
 globalThis.getThreshold = () => imageMatcher.threshold;
 globalThis.setThreshold = (threshold) => imageMatcher.updateThreshold(threshold);
 globalThis.getSessionCounter = () => sessionRunCounter;
+
+// Debug function to show available images and their tags
+globalThis.debugImages = () => {
+  console.log('🔍 Available Images:');
+  if (imageMatcher.imageAssets.length === 0) {
+    console.log('No images found. Run scanImages() first.');
+    return;
+  }
+  
+  imageMatcher.imageAssets.forEach((img, index) => {
+    console.log(`${index + 1}. ${img.name}`);
+    console.log(`   Tags: ${img.tags.join(', ')}`);
+    console.log(`   Type: ${img.node.type}`);
+  });
+};
 globalThis.resetSessionCounter = () => { sessionRunCounter = 0; console.log('Session counter reset to 0'); };
 globalThis.debugBatchPositions = () => {
   const page = figma.currentPage;
