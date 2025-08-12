@@ -39,8 +39,8 @@ def generate_claims():
         
         print(f"✅ Claims generated successfully: {result.stdout}")
         
-        # Look for generated job files
-        job_files = list(Path('.').glob('job_*.json'))
+        # Look for generated job files in the out/ directory
+        job_files = list(Path('out').glob('*.json'))
         if not job_files:
             return jsonify({
                 'success': False,
@@ -56,13 +56,13 @@ def generate_claims():
         
         # Extract claims from the job data
         claims = []
-        if 'claims' in job_data:
-            for angle_id, angle_claims in job_data['claims'].items():
-                for claim in angle_claims:
+        if 'variants' in job_data and job_data['variants']:
+            for variant in job_data['variants']:
+                if 'claim' in variant:
                     claims.append({
-                        'text': claim.get('text', ''),
-                        'style': claim.get('style', ''),
-                        'angle': angle_id
+                        'text': variant['claim'],
+                        'style': 'balanced',  # Default style since it's not in the variant
+                        'angle': 'general'    # Default angle since it's not in the variant
                     })
         
         return jsonify({
