@@ -360,50 +360,62 @@
         parent.postMessage({ pluginMessage: { type: 'update-threshold', threshold: parseInt(e.target.value) } }, '*');
       });
       
-      // AI Toggle
-      const aiToggle = document.getElementById('aiToggle');
-      aiToggle.addEventListener('click', () => {
-        aiToggle.classList.toggle('active');
-      });
-      
       // Main functionality
-      document.getElementById('generateClaims').onclick = () => {
-        const brandFile = document.getElementById('brandFile').value;
-        const claimCount = parseInt(document.getElementById('claimCount').value) || 5;
-        const claimStyle = document.getElementById('claimStyle').value;
-        
-        parent.postMessage({ 
-          pluginMessage: { 
-            type: 'generate-claims', 
-            brandFile, 
-            claimCount, 
-            claimStyle 
-          } 
-        }, '*');
-      };
+      const generateClaimsBtn = document.getElementById('generateClaims');
+      if (generateClaimsBtn) {
+        generateClaimsBtn.onclick = () => {
+          const brandFile = document.getElementById('brandFile').value;
+          const claimCount = parseInt(document.getElementById('claimCount').value) || 5;
+          const claimStyle = document.getElementById('claimStyle').value;
+          
+          parent.postMessage({ 
+            pluginMessage: { 
+              type: 'generate-claims', 
+              brandFile, 
+              claimCount, 
+              claimStyle 
+            } 
+          }, '*');
+        };
+      }
       
-      document.getElementById('viewClaims').onclick = () => {
-        parent.postMessage({ pluginMessage: { type: 'view-claims' } }, '*');
-      };
+      const viewClaimsBtn = document.getElementById('viewClaims');
+      if (viewClaimsBtn) {
+        viewClaimsBtn.onclick = () => {
+          parent.postMessage({ pluginMessage: { type: 'view-claims' } }, '*');
+        };
+      }
       
-      document.getElementById('run').onclick = () => {
-        const jobId = (document.getElementById('job')?.value || "").trim();
-        const mode = (document.getElementById('mode')?.value || "batch");
-        const template = (document.getElementById('template')?.value || "Template/1080x1350").trim();
-        parent.postMessage({ pluginMessage: { type: 'run-job', jobId, mode, template } }, '*');
-      };
+      const runBtn = document.getElementById('run');
+      if (runBtn) {
+        runBtn.onclick = () => {
+          const jobId = (document.getElementById('job')?.value || "").trim();
+          const mode = (document.getElementById('mode')?.value || "batch");
+          const template = (document.getElementById('template')?.value || "Template/1080x1350").trim();
+          parent.postMessage({ pluginMessage: { type: 'run-job', jobId, mode, template } }, '*');
+        };
+      }
       
-      document.getElementById('clear').onclick = () => {
-        parent.postMessage({ pluginMessage: { type: 'clear-all' } }, '*');
-      };
+      const clearBtn = document.getElementById('clear');
+      if (clearBtn) {
+        clearBtn.onclick = () => {
+          parent.postMessage({ pluginMessage: { type: 'clear-all' } }, '*');
+        };
+      }
       
-      document.getElementById('scanImages').onclick = () => {
-        parent.postMessage({ pluginMessage: { type: 'scan-images' } }, '*');
-      };
+      const scanImagesBtn = document.getElementById('scanImages');
+      if (scanImagesBtn) {
+        scanImagesBtn.onclick = () => {
+          parent.postMessage({ pluginMessage: { type: 'scan-images' } }, '*');
+        };
+      }
       
-      document.getElementById('testMatching').onclick = () => {
-        parent.postMessage({ pluginMessage: { type: 'test-matching' } }, '*');
-      };
+      const testMatchingBtn = document.getElementById('testMatching');
+      if (testMatchingBtn) {
+        testMatchingBtn.onclick = () => {
+          parent.postMessage({ pluginMessage: { type: 'test-matching' } }, '*');
+        };
+      }
       
       // Listen for messages from the plugin
       window.addEventListener('message', (event) => {
