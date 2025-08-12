@@ -815,6 +815,33 @@ figma.ui.onmessage = async (msg) => {
     });
   }
   
+  } else if (msg.type === "generate-claims") {
+    // Generate claims using the brand strategy
+    try {
+      console.log(`🎯 Generating ${msg.claimCount} claims with style: ${msg.claimStyle}`);
+      
+      // This will trigger the claim generation process
+      // For now, we'll show a notification and log the parameters
+      figma.notify(`Generating ${msg.claimCount} ${msg.claimStyle} claims for ${msg.brandFile}...`);
+      
+      // TODO: Integrate with your claim generation system
+      // You can call your existing claim generation logic here
+      // or trigger it via the local server
+      
+    } catch (error) {
+      console.error('Error generating claims:', error);
+      figma.notify(`Error generating claims: ${error.message}`);
+    }
+  } else if (msg.type === "view-claims") {
+    // View generated claims
+    try {
+      figma.notify('Viewing generated claims...');
+      // TODO: Show claims in a modal or notification
+      // This could display the claims that were generated
+    } catch (error) {
+      console.error('Error viewing claims:', error);
+      figma.notify(`Error viewing claims: ${error.message}`);
+    }
   } else if (msg.type === "update-threshold") {
     // Update the image matching threshold
     if (msg.threshold !== undefined) {

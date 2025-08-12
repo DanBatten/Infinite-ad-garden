@@ -1,0 +1,5 @@
+Brand: Metra
+Product: Holistic Beauty Supplement Capsules
+Ingredients: Lustriva, DE-111, Affron, Chromax, Biotin, Collagen, Hyaluronic Acid, Vitamin C, Vitamin E, Zinc, Selenium
+Headline Font: Inter Bold
+Body Copy Font: Inter Regular
