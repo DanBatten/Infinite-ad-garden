@@ -28,8 +28,11 @@ FORCE_MOCK = False
 def main():
     print("[IAG] Start", flush=True)
 
+    # Read brand file from environment variable (set by the API)
+    brand_file = os.environ.get('BRAND_FILE', 'Metra')
+    
     # point to your current enhanced input file (processed from input docs)
-    cfg = load_json("inputs/Metra/metra_enhanced.json")
+    cfg = load_json(f"inputs/{brand_file}/{brand_file.lower()}_enhanced.json")
 
     strategy, brand, formulation = cfg["strategy"], cfg["brand"], cfg["formulation"]
     
