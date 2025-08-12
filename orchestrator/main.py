@@ -29,7 +29,7 @@ def main():
     print("[IAG] Start", flush=True)
 
     # point to your current enhanced input file (processed from input docs)
-    cfg = load_json("inputs/metra_enhanced.json")
+    cfg = load_json("inputs/Metra/metra_enhanced.json")
 
     strategy, brand, formulation = cfg["strategy"], cfg["brand"], cfg["formulation"]
     n = cfg.get("generation_params", {}).get("num_ads", 30)

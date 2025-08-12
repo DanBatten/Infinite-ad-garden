@@ -477,7 +477,13 @@ Return only the JSON object, no additional text.
                 "core_beliefs": brand_strategy.get("brand_identity", {}).get("core_beliefs", []),
                 "brand_narrative": brand_strategy.get("brand_identity", {}).get("brand_narrative", ""),
                 "brand_voice": brand_strategy.get("brand_identity", {}).get("brand_voice", ""),
-                "brand_promise": brand_strategy.get("brand_identity", {}).get("brand_promise", "")
+                "brand_promise": brand_strategy.get("brand_identity", {}).get("brand_promise", ""),
+                "logo_url": f"http://localhost:8001/static/images/{brand_name.lower()}_logo.png",
+                "palette": brand_strategy.get("visual_identity", {}).get("color_palette", ["#2C3E50", "#E74C3C", "#ECF0F1", "#3498DB", "#FFFFFF"]),
+                "type": {
+                    "heading": "Inter Bold",
+                    "body": "Inter Regular"
+                }
             },
             "audience": {
                 "primary": brand_strategy.get("target_audience", {}).get("demographics", "General audience"),
@@ -592,7 +598,50 @@ Return only the JSON object, no additional text.
                 "color_constraints": brand_strategy.get("visual_identity", {}).get("color_palette", ["#000000", "#FFFFFF"]),
                 "composition_preferences": brand_strategy.get("art_direction", {}).get("composition_preferences", "Product-focused with clean backgrounds"),
                 "brand_elements": brand_strategy.get("art_direction", {}).get("brand_elements", [])
-            }
+            },
+            "formulation": {
+                "product_name": brand_strategy.get("product", {}).get("name", "Holistic Beauty Supplement"),
+                "key_ingredients": brand_strategy.get("product", {}).get("ingredients", []),
+                "banned_claims": [
+                    "treat disease", "cure illness", "prevent medical conditions",
+                    "medical treatment", "therapeutic cure", "healing properties"
+                ]
+            },
+            "angles": [
+                {
+                    "id": "beauty-from-within",
+                    "name": "Beauty from Within",
+                    "pain_point": "External beauty products don't address root causes",
+                    "trigger": "Frustration with surface-level solutions",
+                    "positioning": "Holistic beauty through internal nourishment",
+                    "headline_examples": [
+                        "Transform your beauty routine from the inside out",
+                        "Why your skincare routine isn't working (and what does)"
+                    ]
+                },
+                {
+                    "id": "busy-lifestyle",
+                    "name": "Busy Lifestyle Solutions",
+                    "pain_point": "No time for complex beauty routines",
+                    "trigger": "Overwhelmed by beauty choices",
+                    "positioning": "Simple, effective beauty in one daily capsule",
+                    "headline_examples": [
+                        "Busy woman? Get holistic beauty benefits without the hassle",
+                        "One capsule, five beauty benefits, zero time wasted"
+                    ]
+                },
+                {
+                    "id": "scientific-backing",
+                    "name": "Science-Backed Beauty",
+                    "pain_point": "Skeptical of unproven beauty claims",
+                    "trigger": "Desire for credible solutions",
+                    "positioning": "Clinically-supported ingredients for visible results",
+                    "headline_examples": [
+                        "The science behind beauty supplements that actually work",
+                        "Clinically-proven ingredients for your beauty transformation"
+                    ]
+                }
+            ]
         }
         
         return enhanced_json
@@ -610,7 +659,7 @@ def main():
     
     # Process Metra brand documents
     print("🔄 Processing Metra brand documents...")
-    document_analyses = processor.process_documents("inputs/Metra", "Metra")
+    document_analyses = processor.process_documents("inputs/Metra/brand_docs", "Metra")
     
     if not document_analyses:
         print("❌ No documents processed successfully")
@@ -633,7 +682,7 @@ def main():
     enhanced_json = processor.create_enhanced_input_json(brand_strategy, "Metra")
     
     # Save the enhanced JSON
-    output_path = "inputs/metra_enhanced.json"
+    output_path = "inputs/Metra/metra_enhanced.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(enhanced_json, f, indent=2, ensure_ascii=False)
     
