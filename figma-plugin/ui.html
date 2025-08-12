@@ -50,9 +50,26 @@
       
       .main-content {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
         gap: 16px;
         padding: 0 20px 16px 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* Responsive design for smaller screens */
+      @media (max-width: 1200px) {
+        .main-content {
+          grid-template-columns: 1fr 1fr;
+          max-width: 900px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .main-content {
+          grid-template-columns: 1fr;
+          max-width: 500px;
+        }
       }
       
       .section {
