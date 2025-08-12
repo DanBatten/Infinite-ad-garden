@@ -123,13 +123,13 @@
       }
       
       button.primary-button {
-        background: var(--accent) !important;
+        background: rgb(var(--accent)) !important;
         color: white !important;
         margin-top: 0;
       }
       
       button.primary-button:hover {
-        background: var(--accent-hover) !important;
+        background: rgb(var(--accent-hover)) !important;
       }
       
       .secondary-button {
@@ -311,7 +311,7 @@
         
         <div class="input-group">
           <label>Template Name</label>
-          <input id="template" placeholder="e.g. Template/1080x1350" value="Template/1080x1350" />
+          <input id="template" placeholder="e.g. Template/1080x1440" value="Template/1080x1440" />
         </div>
         
         <button id="run">Generate Ads</button>
@@ -393,7 +393,7 @@
         runBtn.onclick = () => {
           const jobId = (document.getElementById('job')?.value || "").trim();
           const mode = (document.getElementById('mode')?.value || "batch");
-          const template = (document.getElementById('template')?.value || "Template/1080x1350").trim();
+          const template = (document.getElementById('template')?.value || "Template/1080x1440").trim();
           parent.postMessage({ pluginMessage: { type: 'run-job', jobId, mode, template } }, '*');
         };
       }
