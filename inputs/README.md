@@ -12,6 +12,7 @@ inputs/
 │   │   ├── *.pdf                  # PDF documents (brand decks, research, etc.)
 │   │   └── *.rtf                  # Rich text documents
 │   ├── metra_enhanced.json        # Generated brand strategy JSON
+│   ├── metra_raw_analyses.json    # Raw document analyses for debugging
 │   └── brand_config.json          # Brand configuration file
 ├── BRAND_TEMPLATE/                 # Template for new brands
 │   └── brand_config.json          # Template configuration

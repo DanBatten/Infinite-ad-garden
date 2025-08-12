@@ -657,9 +657,14 @@ def main():
     
     processor = DocumentProcessor()
     
-    # Process Metra brand documents
-    print("🔄 Processing Metra brand documents...")
-    document_analyses = processor.process_documents("inputs/Metra/brand_docs", "Metra")
+    # Brand configuration
+    brand_name = "Metra"
+    brand_folder = f"inputs/{brand_name}"
+    brand_docs_path = f"{brand_folder}/brand_docs"
+    
+    # Process brand documents
+    print(f"🔄 Processing {brand_name} brand documents...")
+    document_analyses = processor.process_documents(brand_docs_path, brand_name)
     
     if not document_analyses:
         print("❌ No documents processed successfully")
@@ -669,7 +674,7 @@ def main():
     
     # Synthesize all analyses into unified brand strategy
     print("🤖 Synthesizing brand strategy from all documents...")
-    brand_strategy = processor.synthesize_brand_strategy(document_analyses, "Metra")
+    brand_strategy = processor.synthesize_brand_strategy(document_analyses, brand_name)
     
     if not brand_strategy:
         print("❌ Failed to synthesize brand strategy")
@@ -679,10 +684,10 @@ def main():
     
     # Create enhanced input JSON
     print("📝 Creating enhanced input JSON...")
-    enhanced_json = processor.create_enhanced_input_json(brand_strategy, "Metra")
+    enhanced_json = processor.create_enhanced_input_json(brand_strategy, brand_name)
     
     # Save the enhanced JSON
-    output_path = "inputs/Metra/metra_enhanced.json"
+    output_path = f"{brand_folder}/{brand_name.lower()}_enhanced.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(enhanced_json, f, indent=2, ensure_ascii=False)
     
@@ -698,7 +703,7 @@ def main():
     print(f"   Visual Style: {enhanced_json['visual']['design_style']}")
     
     # Save raw analyses for debugging
-    debug_path = "inputs/metra_raw_analyses.json"
+    debug_path = f"{brand_folder}/{brand_name.lower()}_raw_analyses.json"
     with open(debug_path, 'w', encoding='utf-8') as f:
         json.dump(document_analyses, f, indent=2, ensure_ascii=False)
     print(f"🔍 Raw analyses saved to {debug_path} for debugging")
