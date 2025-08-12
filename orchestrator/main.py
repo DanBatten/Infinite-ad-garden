@@ -32,8 +32,18 @@ def main():
     cfg = load_json("inputs/Metra/metra_enhanced.json")
 
     strategy, brand, formulation = cfg["strategy"], cfg["brand"], cfg["formulation"]
-    n = cfg.get("generation_params", {}).get("num_ads", 30)
-    per_angle = cfg.get("generation_params", {}).get("per_angle", 8)
+    
+    # Read parameters from environment variables (set by the API)
+    import os
+    claim_count = int(os.environ.get('CLAIM_COUNT', 30))
+    claim_style = os.environ.get('CLAIM_STYLE', 'balanced')
+    
+    # Override config values with API parameters
+    n = claim_count  # Use the actual requested count instead of hardcoded 30
+    per_angle = max(claim_count // 4, 2)  # Distribute claims across angles
+    
+    print(f"[IAG] Requested: {claim_count} claims, style: {claim_style}", flush=True)
+    print(f"[IAG] Will generate {per_angle} claims per angle", flush=True)
 
     use_llm = HAS_LLM and (not FORCE_MOCK)
 
@@ -42,7 +52,7 @@ def main():
     if use_llm:
         try:
             print("[IAG] LLM claims by angle…", flush=True)
-            angle_map = generate_claims_by_angle(cfg, target_per_angle=max(per_angle, 8))
+            angle_map = generate_claims_by_angle(cfg, target_per_angle=max(per_angle, 8), style=claim_style)
 
             # verify / rewrite with compliance
             allowed_pool: List[Dict[str, str]] = []

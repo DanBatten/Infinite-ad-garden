@@ -17,13 +17,23 @@ def _ing_str(formulation: Dict[str, Any]) -> str:
         parts.append(f"{i['name']}{dose} ({i.get('evidence_level','n/a')})")
     return ", ".join(parts)
 
-def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8) -> Dict[str, List[Dict[str, str]]]:
+def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, style: str = 'balanced') -> Dict[str, List[Dict[str, str]]]:
     """
     Returns {angle_id: [ {text, style, angle_id}, ... ] } with de-dupe per angle.
     Expects cfg to include "angles" list (see input example I provide below).
     """
     brand, strategy, formulation = cfg["brand"], cfg["strategy"], cfg["formulation"]
     angle_claims: Dict[str, List[Dict[str, str]]] = {}
+
+    # Style-specific instructions for the LLM
+    style_instructions = {
+        'benefit': "Focus on specific product benefits and results. Use language that emphasizes what the customer will gain.",
+        'balanced': "Balance benefits with emotional appeal. Mix functional benefits with aspirational messaging.",
+        'problem': "Focus on pain points and problems the product solves. Use language that resonates with customer frustrations.",
+        'lifestyle': "Emphasize lifestyle integration and daily usage. Focus on how the product fits into the customer's routine."
+    }
+    
+    style_instruction = style_instructions.get(style, style_instructions['balanced'])
 
     for angle in cfg.get("angles", []):
         user = CLAIMS_USER.format(
@@ -41,6 +51,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8) -> 
             examples="\n".join(f"- {ex}" for ex in angle.get("headline_examples", [])),
             target_count=target_per_angle,
             product_name=formulation.get("product_name", "the product"),
+            style_instruction=style_instruction,  # Add style-specific instruction
         )
 
         out = llm_json(CLAIMS_SYSTEM, user) or {}
@@ -56,7 +67,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8) -> 
             seen.add(k)
             claims.append({
                 "text": txt,
-                "style": c.get("style", ""),
+                "style": style,  # Use the requested style
                 "angle_id": angle.get("id", angle.get("name", "angle"))
             })
         angle_claims[angle.get("id", angle.get("name", "angle"))] = claims

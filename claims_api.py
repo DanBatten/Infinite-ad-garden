@@ -21,13 +21,22 @@ def generate_claims():
         
         print(f"🎯 Generating claims for {brand_file}, count: {claim_count}, style: {claim_style}")
         
+        # Pass parameters to the orchestrator via environment variables
+        env_vars = {
+            **os.environ, 
+            'PYTHONPATH': os.getcwd(),
+            'CLAIM_COUNT': str(claim_count),
+            'CLAIM_STYLE': claim_style,
+            'BRAND_FILE': brand_file
+        }
+        
         # Run the claims generation system
         result = subprocess.run(
             ['python3', 'orchestrator/main.py'],
             capture_output=True,
             text=True,
             cwd=os.getcwd(),
-            env={**os.environ, 'PYTHONPATH': os.getcwd()}
+            env=env_vars
         )
         
         if result.returncode != 0:
@@ -61,7 +70,7 @@ def generate_claims():
                 if 'claim' in variant:
                     claims.append({
                         'text': variant['claim'],
-                        'style': 'balanced',  # Default style since it's not in the variant
+                        'style': claim_style,  # Use the actual requested style
                         'angle': 'general'    # Default angle since it's not in the variant
                     })
         

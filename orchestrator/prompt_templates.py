@@ -19,13 +19,15 @@ Lexicon:
 - Prefer: {prefer}
 - Avoid: {avoid}
 
+Style guidance: {style_instruction}
+
 Style anchors (examples, DO NOT copy verbatim):
 {examples}
 
 Task:
 Generate AT LEAST {target_count} distinct, compliance-safe CLAIMS for {product_name}.
-Each claim: 6–12 words, structure/function style. No disease, no “clinically proven”, no guarantees.
-Vary styles: mix first-person (“I… ”), “why/explainer”, and stat/price hooks.
+Each claim: 6–12 words, structure/function style. No disease, no "clinically proven", no guarantees.
+Vary styles: mix first-person ("I… "), "why/explainer", and stat/price hooks.
 
 JSON:
 {{ "claims": [ {{ "text": "…", "style": "first_person|why|stat", "support": "1-line rationale" }} ] }}
