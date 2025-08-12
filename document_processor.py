@@ -646,6 +646,55 @@ Return only the JSON object, no additional text.
         
         return enhanced_json
 
+    def create_brand_config(self, brand_name, enhanced_json):
+        """Create a brand configuration file based on the enhanced JSON"""
+        try:
+            # Read the template config file
+            template_path = "inputs/BRAND_TEMPLATE/brand_config.json"
+            if not os.path.exists(template_path):
+                print(f"⚠️ Template config not found: {template_path}")
+                return False
+            
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template_config = json.load(f)
+            
+            # Update template with brand-specific information
+            config = template_config.copy()
+            config["brand_name"] = brand_name
+            config["brand_folder"] = f"inputs/{brand_name}"
+            config["brand_docs_path"] = f"inputs/{brand_name}/brand_docs"
+            config["output_json"] = f"inputs/{brand_name}/{brand_name.lower()}_enhanced.json"
+            
+            # Update brand info from enhanced JSON
+            if "brand" in enhanced_json:
+                config["brand_info"]["industry"] = enhanced_json.get("strategy", {}).get("industry", "Unknown")
+                config["brand_info"]["primary_product"] = enhanced_json.get("brand", {}).get("product_name", "Unknown")
+                config["brand_info"]["target_audience"] = enhanced_json.get("audience", {}).get("primary", "Unknown")
+                config["brand_info"]["brand_positioning"] = enhanced_json.get("positioning", {}).get("uvp", "Unknown")
+            
+            # Update document processor paths
+            config["document_processor"]["input_folder"] = f"inputs/{brand_name}/brand_docs"
+            config["document_processor"]["output_json"] = f"inputs/{brand_name}/{brand_name.lower()}_enhanced.json"
+            config["document_processor"]["raw_analyses"] = f"inputs/{brand_name}/{brand_name.lower()}_raw_analyses.json"
+            
+            # Update orchestrator paths
+            config["orchestrator"]["input_json"] = f"inputs/{brand_name}/{brand_name.lower()}_enhanced.json"
+            
+            # Update Figma plugin display
+            config["figma_plugin"]["brand_display_name"] = f"{brand_name} (inputs/{brand_name}/)"
+            config["figma_plugin"]["brand_value"] = brand_name.lower()
+            
+            # Save the config file
+            config_path = f"inputs/{brand_name}/brand_config.json"
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error creating brand config: {str(e)}")
+            return False
+
 def main():
     """Main function to process documents and generate brand strategy"""
     
@@ -724,6 +773,14 @@ def main():
     with open(debug_path, 'w', encoding='utf-8') as f:
         json.dump(document_analyses, f, indent=2, ensure_ascii=False)
     print(f"🔍 Raw analyses saved to {debug_path} for debugging")
+    
+    # Create brand config file
+    print("⚙️ Creating brand configuration file...")
+    config_created = processor.create_brand_config(brand_name, enhanced_json)
+    if config_created:
+        print(f"✅ Brand config file created: {brand_folder}/brand_config.json")
+    else:
+        print(f"⚠️ Failed to create brand config file")
 
 if __name__ == "__main__":
     main()

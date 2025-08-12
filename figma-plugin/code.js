@@ -40,9 +40,9 @@ class ImageMatcher {
     try {
       console.log('🔍 Starting image scan...');
       
-      // First, find the BrandAssets frame by searching through all frames
-      const allFrames = figma.root.findAll(node => node.type === 'FRAME');
-      console.log(`📁 Found ${allFrames.length} total frames:`, allFrames.map(f => f.name));
+      // First, find the BrandAssets frame by searching through the current page only
+      const allFrames = figma.currentPage.findAll(node => node.type === 'FRAME');
+      console.log(`📁 Found ${allFrames.length} total frames on current page:`, allFrames.map(f => f.name));
       
       const brandAssetsFrame = allFrames.find(frame => frame.name === 'BrandAssets');
       
@@ -700,7 +700,7 @@ async function placeImageFill(rect, url) {
 }
 
 function findTemplate(name) {
-  const node = figma.root.findOne(n => n.type === "FRAME" && n.name === name);
+      const node = figma.currentPage.findOne(n => n.type === "FRAME" && n.name === name);
   if (!node) throw new Error(`Template frame '${name}' not found`);
   return node;
 }
@@ -924,7 +924,8 @@ figma.ui.onmessage = async (msg) => {
           figma.ui.postMessage({ 
             type: 'claims-generated', 
             claims: data.claims,
-            message: data.message
+            message: data.message,
+            job_file: data.job_file
           });
           figma.notify(`✅ ${data.message}`);
         } else {

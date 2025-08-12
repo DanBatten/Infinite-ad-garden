@@ -826,6 +826,13 @@
               // Show job ID display
               document.getElementById('generatedJobId').value = jobId;
               document.getElementById('jobIdDisplay').style.display = 'block';
+              
+              // Auto-populate the Ad Generation Job ID field
+              const adGenerationJobIdField = document.getElementById('job');
+              if (adGenerationJobIdField) {
+                adGenerationJobIdField.value = jobId;
+                console.log('Auto-populated Ad Generation Job ID field with:', jobId);
+              }
             }
           }
           
