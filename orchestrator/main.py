@@ -28,8 +28,8 @@ FORCE_MOCK = False
 def main():
     print("[IAG] Start", flush=True)
 
-    # point to your new input file
-    cfg = load_json("inputs/beauty_capsule.json")
+    # point to your current enhanced input file (processed from input docs)
+    cfg = load_json("inputs/metra_enhanced.json")
 
     strategy, brand, formulation = cfg["strategy"], cfg["brand"], cfg["formulation"]
     n = cfg.get("generation_params", {}).get("num_ads", 30)
