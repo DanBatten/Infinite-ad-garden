@@ -723,7 +723,7 @@ async function exportFrame(frame) {
 }
 
 // ---------------- UI + message handler ----------------
-figma.showUI(__html__, { width: 850, height: 800 });
+figma.showUI(__html__, { width: 850, height: 900 });
 
 figma.ui.onmessage = async (msg) => {
   console.log('[Plugin] Received message:', msg);
