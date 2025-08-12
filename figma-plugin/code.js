@@ -503,35 +503,108 @@ async function resolveFontOrNull(family, style) {
 }
 
 async function inheritNodeFont(node) {
-  if (node.fontName && typeof node.fontName === 'object') {
-    return node.fontName;
+  try {
+    // Check if node has a valid font
+    if (node.fontName && typeof node.fontName === 'object' && 
+        node.fontName.family && node.fontName.style) {
+      return node.fontName;
+    }
+    
+    // Check parent nodes for font inheritance
+    let parent = node.parent;
+    while (parent) {
+      if (parent.fontName && typeof parent.fontName === 'object' && 
+          parent.fontName.family && parent.fontName.style) {
+        return parent.fontName;
+      }
+      parent = parent.parent;
+    }
+    
+    // Default fallback
+    return { family: "Inter", style: "Regular" };
+  } catch (error) {
+    console.warn("⚠️ Error in inheritNodeFont:", error);
+    return { family: "Inter", style: "Regular" };
   }
-  return { family: "Inter", style: "Regular" };
 }
 
 async function setText(node, value, desiredFamily = null, desiredStyle = "Regular") {
   if (!node || node.type !== "TEXT") return;
   
   try {
+    // First, ensure we have a working font
+    let workingFont = null;
+    
     // Try to load the desired font
-    const font = await resolveFontOrNull(desiredFamily, desiredStyle);
-    if (font) {
-      await figma.loadFontAsync(font);
-      node.fontName = font;
-      figma.notify(`✅ Font loaded: ${font.family} / ${font.style}`);
+    if (desiredFamily) {
+      try {
+        const font = await resolveFontOrNull(desiredFamily, desiredStyle);
+        if (font) {
+          await figma.loadFontAsync(font);
+          workingFont = font;
+          console.log(`✅ Font loaded: ${font.family} / ${font.style}`);
+        }
+      } catch (fontError) {
+        console.warn(`⚠️ Failed to load desired font ${desiredFamily} ${desiredStyle}:`, fontError);
+      }
     }
     
-    // Set the text content
+    // If desired font failed, try to inherit from node or use fallback
+    if (!workingFont) {
+      try {
+        workingFont = await inheritNodeFont(node);
+        await figma.loadFontAsync(workingFont);
+        console.log(`✅ Using inherited/fallback font: ${workingFont.family} / ${workingFont.style}`);
+      } catch (inheritError) {
+        console.warn(`⚠️ Failed to inherit font:`, inheritError);
+        // Last resort: use Inter Regular
+        workingFont = { family: "Inter", style: "Regular" };
+        await figma.loadFontAsync(workingFont);
+        console.log(`✅ Using fallback font: ${workingFont.family} / ${workingFont.style}`);
+      }
+    }
+    
+    // Set the font first
+    if (workingFont) {
+      node.fontName = workingFont;
+    }
+    
+    // Now set the text content
     node.characters = value || "";
+    console.log(`✅ Text set successfully: "${value}"`);
     
   } catch (error) {
-    // Fallback to existing font
+    console.error("❌ Failed to set text:", error);
+    // Try one more time with basic Inter font
     try {
-      await inheritNodeFont(node);
+      const basicFont = { family: "Inter", style: "Regular" };
+      await figma.loadFontAsync(basicFont);
+      node.fontName = basicFont;
       node.characters = value || "";
-    } catch (fallbackError) {
-      console.error("Failed to set text:", error);
+      console.log(`✅ Text set with basic font fallback: "${value}"`);
+    } catch (finalError) {
+      console.error("❌ Final fallback failed:", finalError);
+      figma.notify(`❌ Failed to set text: ${error.message}`);
     }
+  }
+}
+
+// ---------------- Font Management ----------------
+async function preloadCommonFonts() {
+  const commonFonts = [
+    { family: "Inter", style: "Regular" },
+    { family: "Inter", style: "Medium" },
+    { family: "Inter", style: "Bold" },
+    { family: "Inter", style: "SemiBold" }
+  ];
+  
+  try {
+    for (const font of commonFonts) {
+      await figma.loadFontAsync(font);
+      console.log(`✅ Preloaded font: ${font.family} ${font.style}`);
+    }
+  } catch (error) {
+    console.warn("⚠️ Some fonts failed to preload:", error);
   }
 }
 
@@ -724,6 +797,13 @@ async function exportFrame(frame) {
 
 // ---------------- UI + message handler ----------------
 figma.showUI(__html__, { width: 850, height: 900 });
+
+// Preload common fonts when plugin starts
+preloadCommonFonts().then(() => {
+  console.log("✅ Common fonts preloaded successfully");
+}).catch(error => {
+  console.warn("⚠️ Font preloading failed:", error);
+});
 
 figma.ui.onmessage = async (msg) => {
   console.log('[Plugin] Received message:', msg);
