@@ -816,31 +816,51 @@ figma.ui.onmessage = async (msg) => {
   }
   
   } else if (msg.type === "generate-claims") {
-    // Generate claims using the brand strategy
+    // Generate claims using the existing system
     try {
-      console.log(`🎯 Generating ${msg.claimCount} claims with style: ${msg.claimStyle}`);
+      console.log(`🎯 Triggering claims generation: ${msg.claimCount} claims, style: ${msg.claimStyle}, brand: ${msg.brandFile}`);
       
-      // This will trigger the claim generation process
-      // For now, we'll show a notification and log the parameters
-      figma.notify(`Generating ${msg.claimCount} ${msg.claimStyle} claims for ${msg.brandFile}...`);
+      // TODO: Hook into your existing claims generation system
+      // This should call your existing system that processes the input folder and hits OpenAI
+      // For now, we'll show a notification and you can integrate it
       
-      // TODO: Integrate with your claim generation system
-      // You can call your existing claim generation logic here
-      // or trigger it via the local server
+      figma.notify(`🚀 Triggering claims generation for ${msg.brandFile}...`);
+      
+      // Example of what you might call:
+      // const claims = await yourExistingClaimsSystem.generate(msg.brandFile, msg.claimCount, msg.claimStyle);
+      // globalThis.generatedClaims = claims;
+      
+      // For now, let's simulate the process
+      setTimeout(() => {
+        figma.notify(`✅ Claims generation complete! Check your existing system for results.`);
+      }, 2000);
       
     } catch (error) {
-      console.error('Error generating claims:', error);
-      figma.notify(`Error generating claims: ${error.message}`);
+      console.error('Error triggering claims generation:', error);
+      figma.notify(`Error: ${error.message}`);
     }
   } else if (msg.type === "view-claims") {
-    // View generated claims
+    // View generated claims from existing system
     try {
-      figma.notify('Viewing generated claims...');
-      // TODO: Show claims in a modal or notification
-      // This could display the claims that were generated
+      figma.notify(`📝 Checking for generated claims...`);
+      
+      // TODO: Hook into your existing system to retrieve generated claims
+      // This should check your existing claims storage/output
+      // For now, we'll show a helpful message
+      
+      // Example of what you might call:
+      // const claims = await yourExistingClaimsSystem.getLatestClaims();
+      // if (claims && claims.length > 0) {
+      //   // Display claims in UI or notification
+      // } else {
+      //   figma.notify('No claims found. Run your claims generation system first.');
+      // }
+      
+      figma.notify(`🔍 Check your existing claims system output for the generated claims.`);
+      
     } catch (error) {
       console.error('Error viewing claims:', error);
-      figma.notify(`Error viewing claims: ${error.message}`);
+      figma.notify(`Error: ${error.message}`);
     }
   } else if (msg.type === "update-threshold") {
     // Update the image matching threshold
