@@ -1,0 +1,5 @@
+Brand: Orra
+Product: Gut Health Supplement
+Ingredients: Carrot Pomace Prebiotic, Broccoli Sprout Concentrate, Bacillus Subtilis Probiotic
+Headline Font: BIZ UDPMincho
+Body Copy Font: Sofia Sans

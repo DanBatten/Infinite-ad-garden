@@ -470,8 +470,7 @@
         <div class="input-group">
           <label>Brand Strategy File</label>
           <select id="brandFile">
-            <option value="metra">Metra (inputs/metra/)</option>
-            <option value="custom">Custom Brand File</option>
+            <option value="">Loading brands...</option>
           </select>
         </div>
         
@@ -667,6 +666,7 @@
             window.brands = data.brands;
             populateBrandSelector(data.brands);
             updateBrandStatus(data.brands);
+            populateClaimGeneratorBrands(data.brands);
           } else {
             console.error('Failed to load brands:', data.error);
           }
@@ -735,7 +735,7 @@
           
           if (data.success) {
             alert(`Documents processed successfully for ${brandName}!`);
-            // Refresh brands to update status
+            // Refresh brands to update status and claim generator dropdown
             loadBrands();
           } else {
             alert(`Error processing documents: ${data.error}`);
@@ -757,6 +757,29 @@
             updateBrandStatus(window.brands);
           }
         });
+      }
+      
+      // Function to populate claim generator brand dropdown
+      function populateClaimGeneratorBrands(brands) {
+        const brandFileSelect = document.getElementById('brandFile');
+        if (!brandFileSelect) return;
+        
+        brandFileSelect.innerHTML = '<option value="">Select a brand strategy file...</option>';
+        
+        // Only show brands that have processed JSON files
+        const brandsWithJson = brands.filter(brand => brand.has_json);
+        
+        brandsWithJson.forEach(brand => {
+          const option = document.createElement('option');
+          option.value = brand.name;
+          option.textContent = `${brand.name} (inputs/${brand.name.toLowerCase()}/)`;
+          brandFileSelect.appendChild(option);
+        });
+        
+        // If no brands have JSON, show a message
+        if (brandsWithJson.length === 0) {
+          brandFileSelect.innerHTML = '<option value="">No processed brands available</option>';
+        }
       }
 
       // Listen for messages from the plugin
