@@ -309,6 +309,23 @@ globalThis.debugBatchPositions = () => {
   });
 };
 
+globalThis.alignBatchHeights = () => {
+  const page = figma.currentPage;
+  const batches = page.findAll(n => n.type === "FRAME" && n.name && n.name.startsWith("Batch/"));
+  if (batches.length > 1) {
+    const firstBatch = batches[0];
+    batches.forEach((batch, i) => {
+      if (i > 0) {
+        batch.y = firstBatch.y;
+        console.log(`📍 Aligned ${batch.name} to Y=${firstBatch.y}`);
+      }
+    });
+    figma.notify(`Aligned ${batches.length - 1} batch frames to same height`);
+  } else {
+    console.log('📍 Only one batch found, no alignment needed');
+  }
+};
+
 // Function to place best matching image in ad
 async function placeBestImageForHeadline(headline, targetFrame) {
   try {
@@ -580,7 +597,17 @@ function ensureBatchFrame(jobId, template, cols = 5, rows = 6, gap = 120, pad = 
     }
     
     batch.x = xOffset;
-    batch.y = template.y;
+    
+    // Ensure all batches are aligned at the same height
+    if (existingBatches.length > 0) {
+      // Use the Y position of the first batch to maintain consistent height alignment
+      batch.y = existingBatches[0].y;
+      console.log(`📍 Aligning height: using existing batch Y position ${batch.y}`);
+    } else {
+      // First batch: use template Y position
+      batch.y = template.y;
+      console.log(`📍 First batch: using template Y position ${batch.y}`);
+    }
     batch.clipsContent = false;
     // Solid white background
     batch.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
