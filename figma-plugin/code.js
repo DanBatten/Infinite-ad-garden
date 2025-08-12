@@ -50,6 +50,10 @@ class ImageMatcher {
       if (!brandAssetsFrame) {
         console.log('⚠️ BrandAssets frame not found. Please create a frame named "BrandAssets" and add your tagged images there.');
         console.log('💡 Available frames:', allFrames.map(f => f.name));
+        console.log('💡 To fix this:');
+        console.log('   1. Create a frame named "BrandAssets" on the current page');
+        console.log('   2. Add images to it with names like "Lifestyle-modern-portrait.png"');
+        console.log('   3. Use dashes to separate tags (e.g., "Product-sophisticated-object.png")');
         return [];
       }
       
@@ -79,11 +83,25 @@ class ImageMatcher {
               tags: tags,
               node: image
             });
+            console.log(`✅ Tagged image: "${image.name}" → Tags: [${tags.join(', ')}]`);
+          } else {
+            console.log(`⚠️ Image "${image.name}" has dashes but no valid tags extracted`);
           }
+        } else {
+          console.log(`⚠️ Image "${image.name}" doesn't use dash-separated naming convention`);
+          console.log(`   Use format: "Category-Mood-Content.png" (e.g., "Lifestyle-modern-portrait.png")`);
         }
       }
       
       console.log(`📸 Found ${this.imageAssets.length} tagged images in BrandAssets frame:`, this.imageAssets.map(img => img.name));
+      
+      if (this.imageAssets.length === 0) {
+        console.log('❌ No tagged images found. To fix this:');
+        console.log('   1. Make sure images have names with dashes (e.g., "Lifestyle-modern-portrait.png")');
+        console.log('   2. Common tag categories: lifestyle, product, portrait, modern, sophisticated, natural');
+        console.log('   3. Example names: "Product-sophisticated-object.png", "Lifestyle-natural-scene.png"');
+      }
+      
       return this.imageAssets;
     } catch (error) {
       console.error('Error scanning for tagged images:', error);
@@ -295,6 +313,48 @@ globalThis.debugImages = () => {
     console.log(`   Tags: ${img.tags.join(', ')}`);
     console.log(`   Type: ${img.node.type}`);
   });
+};
+
+// Comprehensive debug function for image matching issues
+globalThis.debugImageMatching = async () => {
+  console.log('🔍 === IMAGE MATCHING DEBUG ===');
+  
+  // Check current page
+  console.log(`📍 Current page: "${figma.currentPage.name}"`);
+  
+  // Scan for images
+  console.log('\n📸 Scanning for images...');
+  await imageMatcher.scanForTaggedImages();
+  
+  // Show what was found
+  console.log('\n📊 Image Scan Results:');
+  if (imageMatcher.imageAssets.length === 0) {
+    console.log('❌ No tagged images found!');
+    console.log('\n💡 To fix this:');
+    console.log('   1. Create a frame named "BrandAssets" on the current page');
+    console.log('   2. Add images with dash-separated names like:');
+    console.log('      - "Lifestyle-modern-portrait.png"');
+    console.log('      - "Product-sophisticated-object.png"');
+    console.log('      - "Scene-natural-texture.png"');
+    console.log('   3. Make sure images are RECTANGLE nodes with IMAGE fills');
+  } else {
+    console.log(`✅ Found ${imageMatcher.imageAssets.length} tagged images:`);
+    imageMatcher.imageAssets.forEach((img, index) => {
+      console.log(`   ${index + 1}. "${img.name}" → [${img.tags.join(', ')}]`);
+    });
+    
+    // Test matching with a sample headline
+    console.log('\n🧪 Testing with sample headline:');
+    const testHeadline = "Transform your lifestyle with modern solutions";
+    const bestMatch = imageMatcher.findBestImageForHeadline(testHeadline);
+    if (bestMatch) {
+      console.log(`✅ Best match: "${bestMatch.name}" (score: ${imageMatcher.scoreImageRelevance(bestMatch.tags, testHeadline)})`);
+    } else {
+      console.log('❌ No match found for test headline');
+    }
+  }
+  
+  console.log('\n🔍 === DEBUG COMPLETE ===');
 };
 globalThis.resetSessionCounter = () => { sessionRunCounter = 0; console.log('Session counter reset to 0'); };
 globalThis.debugBatchPositions = () => {
