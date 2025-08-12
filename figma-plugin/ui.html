@@ -290,6 +290,62 @@
         font-size: 10px;
         color: rgba(var(--fg), 0.6);
       }
+
+      .claims-scrollable {
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 8px;
+      }
+
+      .claims-scrollable::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .claims-scrollable::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+
+      .claims-scrollable::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+      }
+
+      .claims-scrollable::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+      }
+
+      .job-id-display {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      .job-id-container {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .job-id-container input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 14px;
+        background: #f8f9fa;
+      }
+
+      .job-id-note {
+        font-size: 12px;
+        color: #666;
+        margin: 0;
+        font-style: italic;
+      }
       
       .garden-section {
         background: white;
@@ -361,11 +417,21 @@
           <p>Generating claims... This may take several minutes.</p>
         </div>
         
-        <!-- Claims Display -->
-        <div id="claimsDisplay" class="claims-display" style="display: none;">
-          <h4>Generated Claims</h4>
-          <div id="claimsList"></div>
-        </div>
+                        <!-- Job ID Display -->
+                <div id="jobIdDisplay" class="job-id-display" style="display: none;">
+                  <h4>Generated Job ID</h4>
+                  <div class="job-id-container">
+                    <input type="text" id="generatedJobId" readonly value="" />
+                    <button id="copyJobId" class="secondary-button">Copy</button>
+                  </div>
+                  <p class="job-id-note">Use this Job ID in the Ad Generation section</p>
+                </div>
+
+                <!-- Claims Display -->
+                <div id="claimsDisplay" class="claims-display" style="display: none;">
+                  <h4>Generated Claims</h4>
+                  <div id="claimsList" class="claims-scrollable"></div>
+                </div>
       </div>
       
       <!-- Ad Generation Section -->
@@ -502,6 +568,20 @@
           parent.postMessage({ pluginMessage: { type: 'test-matching' } }, '*');
         };
       }
+
+      // Copy Job ID functionality
+      const copyJobIdBtn = document.getElementById('copyJobId');
+      if (copyJobIdBtn) {
+        copyJobIdBtn.onclick = () => {
+          const jobIdInput = document.getElementById('generatedJobId');
+          jobIdInput.select();
+          document.execCommand('copy');
+          copyJobIdBtn.textContent = 'Copied!';
+          setTimeout(() => {
+            copyJobIdBtn.textContent = 'Copy';
+          }, 2000);
+        };
+      }
       
       // Listen for messages from the plugin
       window.addEventListener('message', (event) => {
@@ -537,6 +617,17 @@
             // Store claims for viewing
             window.generatedClaims = message.claims;
             console.log('Claims received:', message.claims);
+            
+            // Store the job ID for ad generation
+            if (message.job_file) {
+              const jobId = message.job_file.split('/').pop().replace('.json', '');
+              window.lastGeneratedJobId = jobId;
+              console.log('Job ID stored:', jobId);
+              
+              // Show job ID display
+              document.getElementById('generatedJobId').value = jobId;
+              document.getElementById('jobIdDisplay').style.display = 'block';
+            }
           }
           
           if (type === 'show-claims') {
