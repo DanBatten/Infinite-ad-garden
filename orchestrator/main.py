@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
 
-import json, uuid, sys, traceback
+import json, uuid, sys, traceback, os
 from typing import Dict, Any, List
 
 from orchestrator.storage import save_job
@@ -37,7 +37,6 @@ def main():
     strategy, brand, formulation = cfg["strategy"], cfg["brand"], cfg["formulation"]
     
     # Read parameters from environment variables (set by the API)
-    import os
     claim_count = int(os.environ.get('CLAIM_COUNT', 30))
     claim_style = os.environ.get('CLAIM_STYLE', 'balanced')
     
