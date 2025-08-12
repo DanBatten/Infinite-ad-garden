@@ -321,6 +321,8 @@
       const thresholdValue = document.getElementById('thresholdValue');
       thresholdSlider.addEventListener('input', (e) => {
         thresholdValue.textContent = e.target.value + '%';
+        // Send threshold update to plugin
+        parent.postMessage({ pluginMessage: { type: 'update-threshold', threshold: parseInt(e.target.value) } }, '*');
       });
       
       // AI Toggle

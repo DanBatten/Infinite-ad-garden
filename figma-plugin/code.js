@@ -4,6 +4,7 @@
 class ImageMatcher {
   constructor() {
     this.imageAssets = [];
+    this.threshold = 70; // Default threshold (70%)
     this.tagWeights = {
       // Category weights
       'lifestyle': 3,
@@ -242,17 +243,25 @@ class ImageMatcher {
       }
     }
 
-    // Lower threshold - accept any match with a score > 0
-    if (bestMatch && bestScore > 0) {
-      console.log(`🎯 Best image match for "${headline}": ${bestMatch.name} (score: ${bestScore})`);
+    // Apply threshold - only accept matches above threshold
+    const thresholdScore = (this.threshold / 100) * 10; // Convert percentage to 0-10 scale
+    
+    if (bestMatch && bestScore >= thresholdScore) {
+      console.log(`🎯 Best image match for "${headline}": ${bestMatch.name} (score: ${bestScore}, threshold: ${thresholdScore})`);
       return bestMatch;
     } else if (bestMatch) {
-      // Even if score is 0, return the best available match as a fallback
-      console.log(`🎯 Using best available image for "${headline}": ${bestMatch.name} (score: ${bestScore})`);
+      // If no match meets threshold, log it but still return the best available as fallback
+      console.log(`⚠️ Best image "${bestMatch.name}" (score: ${bestScore}) below threshold ${thresholdScore}, using as fallback`);
       return bestMatch;
     }
 
     return null;
+  }
+
+  // Update matching threshold
+  updateThreshold(newThreshold) {
+    this.threshold = newThreshold;
+    console.log(`🎯 Updated matching threshold to: ${this.threshold}%`);
   }
 
   // Get all images ranked by relevance to headline
@@ -284,6 +293,8 @@ globalThis.imageMatcher = imageMatcher;
 globalThis.scanImages = () => imageMatcher.scanForTaggedImages();
 globalThis.testHeadline = (headline) => imageMatcher.findBestImageForHeadline(headline);
 globalThis.debugMatching = () => debugImageMatching();
+globalThis.getThreshold = () => imageMatcher.threshold;
+globalThis.setThreshold = (threshold) => imageMatcher.updateThreshold(threshold);
 
 // Function to place best matching image in ad
 async function placeBestImageForHeadline(headline, targetFrame) {
@@ -663,7 +674,7 @@ figma.ui.onmessage = async (msg) => {
 
   const jobId = (msg.jobId || "").trim();
   const mode  = msg.mode || "batch";
-  const template = msg.template || `Template/${job.format}`;
+  const templateName = msg.template || `Template/${job.format}`;
   
 
   try {
@@ -742,6 +753,12 @@ figma.ui.onmessage = async (msg) => {
     });
   }
   
+  } else if (msg.type === "update-threshold") {
+    // Update the image matching threshold
+    if (msg.threshold !== undefined) {
+      imageMatcher.updateThreshold(msg.threshold);
+      figma.notify(`Threshold updated to ${msg.threshold}%`);
+    }
   } else if (msg.type === "clear-all") {
     // Clear all ad variants
     try {
