@@ -506,14 +506,15 @@
       // Listen for messages from the plugin
       window.addEventListener('message', (event) => {
         if (event.data.pluginMessage) {
-          const { type, data } = event.data.pluginMessage;
+          const message = event.data.pluginMessage;
+          const { type } = message;
           
           if (type === 'status') {
-            if (data.adCount !== undefined) {
-              document.getElementById('adCount').textContent = data.adCount;
+            if (message.data && message.data.adCount !== undefined) {
+              document.getElementById('adCount').textContent = message.data.adCount;
             }
-            if (data.imageCount !== undefined) {
-              document.getElementById('imageCount').textContent = data.imageCount;
+            if (message.data && message.data.imageCount !== undefined) {
+              document.getElementById('imageCount').textContent = message.data.imageCount;
             }
           }
           
@@ -534,7 +535,8 @@
             viewClaimsBtn.disabled = false;
             
             // Store claims for viewing
-            window.generatedClaims = data.claims;
+            window.generatedClaims = message.claims;
+            console.log('Claims received:', message.claims);
           }
           
           if (type === 'show-claims') {
