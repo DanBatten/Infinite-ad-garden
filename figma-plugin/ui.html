@@ -223,6 +223,74 @@
         text-align: center;
       }
       
+      /* Loading State Styles */
+      .loading-state {
+        margin-top: 16px;
+        text-align: center;
+        padding: 20px;
+        background: rgba(var(--accent), 0.05);
+        border-radius: 6px;
+        border: 1px solid rgba(var(--accent), 0.1);
+      }
+      
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid rgba(var(--accent), 0.2);
+        border-top: 3px solid rgb(var(--accent));
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 12px;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .loading-state p {
+        margin: 0;
+        font-size: 12px;
+        color: rgba(var(--fg), 0.7);
+      }
+      
+      /* Claims Display Styles */
+      .claims-display {
+        margin-top: 16px;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+      
+      .claims-display h4 {
+        margin: 0 0 12px 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(var(--fg), 0.8);
+      }
+      
+      .claims-display .claim-item {
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      
+      .claims-display .claim-text {
+        font-weight: 500;
+        color: rgba(var(--fg), 0.9);
+        margin-bottom: 4px;
+      }
+      
+      .claims-display .claim-meta {
+        font-size: 10px;
+        color: rgba(var(--fg), 0.6);
+      }
+      
       .garden-section {
         background: white;
         border-radius: 6px;
@@ -285,7 +353,19 @@
         </div>
         
         <button id="generateClaims" class="primary-button">Generate Claims</button>
-        <button id="viewClaims" class="secondary-button">View Claims</button>
+        <button id="viewClaims" class="secondary-button" disabled>View Claims</button>
+        
+        <!-- Loading State -->
+        <div id="loadingState" class="loading-state" style="display: none;">
+          <div class="spinner"></div>
+          <p>Generating claims... This may take several minutes.</p>
+        </div>
+        
+        <!-- Claims Display -->
+        <div id="claimsDisplay" class="claims-display" style="display: none;">
+          <h4>Generated Claims</h4>
+          <div id="claimsList"></div>
+        </div>
       </div>
       
       <!-- Ad Generation Section -->
@@ -364,6 +444,11 @@
       
       // Main functionality
       const generateClaimsBtn = document.getElementById('generateClaims');
+      const viewClaimsBtn = document.getElementById('viewClaims');
+      const loadingState = document.getElementById('loadingState');
+      const claimsDisplay = document.getElementById('claimsDisplay');
+      const claimsList = document.getElementById('claimsList');
+      
       if (generateClaimsBtn) {
         generateClaimsBtn.onclick = () => {
           const brandFile = document.getElementById('brandFile').value;
@@ -381,7 +466,6 @@
         };
       }
       
-      const viewClaimsBtn = document.getElementById('viewClaims');
       if (viewClaimsBtn) {
         viewClaimsBtn.onclick = () => {
           parent.postMessage({ pluginMessage: { type: 'view-claims' } }, '*');
@@ -432,8 +516,54 @@
               document.getElementById('imageCount').textContent = data.imageCount;
             }
           }
+          
+          // Handle claims-related messages
+          if (type === 'show-loading') {
+            loadingState.style.display = 'block';
+            generateClaimsBtn.disabled = true;
+          }
+          
+          if (type === 'hide-loading') {
+            loadingState.style.display = 'none';
+            generateClaimsBtn.disabled = false;
+          }
+          
+          if (type === 'claims-generated') {
+            loadingState.style.display = 'none';
+            generateClaimsBtn.disabled = false;
+            viewClaimsBtn.disabled = false;
+            
+            // Store claims for viewing
+            window.generatedClaims = data.claims;
+          }
+          
+          if (type === 'show-claims') {
+            if (window.generatedClaims && window.generatedClaims.length > 0) {
+              displayClaims(window.generatedClaims);
+              claimsDisplay.style.display = 'block';
+            } else {
+              alert('No claims found. Generate claims first.');
+            }
+          }
         }
       });
+      
+      // Function to display claims
+      function displayClaims(claims) {
+        claimsList.innerHTML = '';
+        
+        claims.forEach((claim, index) => {
+          const claimItem = document.createElement('div');
+          claimItem.className = 'claim-item';
+          
+          claimItem.innerHTML = `
+            <div class="claim-text">${claim.text}</div>
+            <div class="claim-meta">Style: ${claim.style} | Angle: ${claim.angle}</div>
+          `;
+          
+          claimsList.appendChild(claimItem);
+        });
+      }
     </script>
   </body>
 </html>

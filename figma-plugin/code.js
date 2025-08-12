@@ -823,22 +823,43 @@ figma.ui.onmessage = async (msg) => {
       // Show progress notification
       figma.notify(`🚀 Starting claims generation for ${msg.brandFile}...`);
       
-      // TODO: Integrate with your existing Python claims system
-      // You can either:
-      // 1. Create a simple API endpoint that calls your Python system
-      // 2. Use the existing local server to trigger the claims generation
-      // 3. Directly call the Python functions if you can import them
+      // Show loading state in UI
+      figma.ui.postMessage({ type: 'show-loading' });
       
-      // For now, show instructions
-      figma.notify(`📋 To integrate: Run 'python3 orchestrator/main.py' with your UI parameters:
-      - Brand: ${msg.brandFile}
-      - Count: ${msg.claimCount}
-      - Style: ${msg.claimStyle}
-      
-      Then use 'View Claims' to see results.`);
+      // Call the claims API
+      fetch('http://localhost:5001/generate-claims', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brandFile: msg.brandFile,
+          claimCount: msg.claimCount,
+          claimStyle: msg.claimStyle
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          figma.ui.postMessage({ 
+            type: 'claims-generated', 
+            claims: data.claims,
+            message: data.message
+          });
+          figma.notify(`✅ ${data.message}`);
+        } else {
+          figma.ui.postMessage({ type: 'hide-loading' });
+          figma.notify(`❌ Error: ${data.error}`);
+        }
+      })
+      .catch(error => {
+        figma.ui.postMessage({ type: 'hide-loading' });
+        figma.notify(`❌ Network error: ${error.message}`);
+      });
       
     } catch (error) {
       console.error('Error triggering claims generation:', error);
+      figma.ui.postMessage({ type: 'hide-loading' });
       figma.notify(`Error: ${error.message}`);
     }
   } else if (msg.type === "view-claims") {
@@ -846,21 +867,8 @@ figma.ui.onmessage = async (msg) => {
     try {
       figma.notify(`📝 Checking for generated claims...`);
       
-      // TODO: Hook into your existing system to retrieve generated claims
-      // This should check your existing claims storage/output
-      // For now, we'll show a helpful message
-      
-      // Example of what you might call:
-      // const claims = await yourExistingClaimsSystem.getLatestClaims();
-      // if (claims && claims.length > 0) {
-      //   // Display claims in UI or notification
-      // } else {
-      //   figma.notify('No claims found. Run your claims generation system first.');
-      // }
-      
-      figma.notify(`🔍 Check your existing claims system output for the generated claims.
-      
-      Your system outputs to job files that the ad generation can use.`);
+      // This will be handled by the UI to show the claims display
+      figma.ui.postMessage({ type: 'show-claims' });
       
     } catch (error) {
       console.error('Error viewing claims:', error);

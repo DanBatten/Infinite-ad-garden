@@ -1,3 +1,5 @@
 python-dotenv
 tenacity
 openai
+flask
+flask-cors
