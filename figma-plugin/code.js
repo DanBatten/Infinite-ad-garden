@@ -820,20 +820,22 @@ figma.ui.onmessage = async (msg) => {
     try {
       console.log(`🎯 Triggering claims generation: ${msg.claimCount} claims, style: ${msg.claimStyle}, brand: ${msg.brandFile}`);
       
-      // TODO: Hook into your existing claims generation system
-      // This should call your existing system that processes the input folder and hits OpenAI
-      // For now, we'll show a notification and you can integrate it
+      // Show progress notification
+      figma.notify(`🚀 Starting claims generation for ${msg.brandFile}...`);
       
-      figma.notify(`🚀 Triggering claims generation for ${msg.brandFile}...`);
+      // TODO: Integrate with your existing Python claims system
+      // You can either:
+      // 1. Create a simple API endpoint that calls your Python system
+      // 2. Use the existing local server to trigger the claims generation
+      // 3. Directly call the Python functions if you can import them
       
-      // Example of what you might call:
-      // const claims = await yourExistingClaimsSystem.generate(msg.brandFile, msg.claimCount, msg.claimStyle);
-      // globalThis.generatedClaims = claims;
+      // For now, show instructions
+      figma.notify(`📋 To integrate: Run 'python3 orchestrator/main.py' with your UI parameters:
+      - Brand: ${msg.brandFile}
+      - Count: ${msg.claimCount}
+      - Style: ${msg.claimStyle}
       
-      // For now, let's simulate the process
-      setTimeout(() => {
-        figma.notify(`✅ Claims generation complete! Check your existing system for results.`);
-      }, 2000);
+      Then use 'View Claims' to see results.`);
       
     } catch (error) {
       console.error('Error triggering claims generation:', error);
@@ -856,7 +858,9 @@ figma.ui.onmessage = async (msg) => {
       //   figma.notify('No claims found. Run your claims generation system first.');
       // }
       
-      figma.notify(`🔍 Check your existing claims system output for the generated claims.`);
+      figma.notify(`🔍 Check your existing claims system output for the generated claims.
+      
+      Your system outputs to job files that the ad generation can use.`);
       
     } catch (error) {
       console.error('Error viewing claims:', error);
