@@ -17,7 +17,7 @@ def generate_claims():
         data = request.json
         brand_file = data.get('brandFile', 'metra')
         claim_count = data.get('claimCount', 8)
-        claim_style = data.get('claimStyle', 'balanced')
+        claim_style = data.get('claimStyle', 'mixed-styles')
         
         print(f"🎯 Generating claims for {brand_file}, count: {claim_count}, style: {claim_style}")
         

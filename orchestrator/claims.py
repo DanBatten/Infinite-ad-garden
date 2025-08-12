@@ -27,13 +27,14 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
 
     # Style-specific instructions for the LLM
     style_instructions = {
-        'benefit': "Focus on specific product benefits and results. Use language that emphasizes what the customer will gain.",
-        'balanced': "Balance benefits with emotional appeal. Mix functional benefits with aspirational messaging.",
-        'problem': "Focus on pain points and problems the product solves. Use language that resonates with customer frustrations.",
-        'lifestyle': "Emphasize lifestyle integration and daily usage. Focus on how the product fits into the customer's routine."
+        'benefit-focused': "Focus on specific product benefits and results. Use language that emphasizes what the customer will gain.",
+        'problem-solution': "Focus on pain points and problems the product solves. Use language that resonates with customer frustrations.",
+        'social-proof': "Emphasize social validation, testimonials, and community. Use language that builds trust through others' experiences.",
+        'urgency-driven': "Create urgency and FOMO. Use language that emphasizes time-sensitive benefits and limited opportunities.",
+        'mixed-styles': "Balance benefits with emotional appeal. Mix functional benefits with aspirational messaging across different approaches."
     }
     
-    style_instruction = style_instructions.get(style, style_instructions['balanced'])
+    style_instruction = style_instructions.get(style, style_instructions['mixed-styles'])
 
     for angle in cfg.get("angles", []):
         user = CLAIMS_USER.format(
