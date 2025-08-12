@@ -300,6 +300,14 @@ globalThis.getThreshold = () => imageMatcher.threshold;
 globalThis.setThreshold = (threshold) => imageMatcher.updateThreshold(threshold);
 globalThis.getSessionCounter = () => sessionRunCounter;
 globalThis.resetSessionCounter = () => { sessionRunCounter = 0; console.log('Session counter reset to 0'); };
+globalThis.debugBatchPositions = () => {
+  const page = figma.currentPage;
+  const batches = page.findAll(n => n.type === "FRAME" && n.name && n.name.startsWith("Batch/"));
+  console.log(`📊 Found ${batches.length} batch frames:`);
+  batches.forEach((batch, i) => {
+    console.log(`${i + 1}. ${batch.name}: x=${batch.x}, y=${batch.y}, width=${batch.width}, height=${batch.height}`);
+  });
+};
 
 // Function to place best matching image in ad
 async function placeBestImageForHeadline(headline, targetFrame) {
@@ -553,7 +561,25 @@ function ensureBatchFrame(jobId, template, cols = 5, rows = 6, gap = 120, pad = 
     const w = (cols * template.width) + ((cols - 1) * gap) + (pad * 2);
     const h = (rows * template.height) + ((rows - 1) * gap) + (pad * 2);
     batch.resizeWithoutConstraints(w, h);
-    batch.x = template.x + template.width + 200;
+    // Calculate position based on existing batch frames
+    const existingBatches = page.findAll(n => n.type === "FRAME" && n.name && n.name.startsWith("Batch/"));
+    let xOffset = template.x + template.width + 200; // Default offset from template
+    
+    if (existingBatches.length > 0) {
+      // Find the rightmost batch frame
+      const rightmostBatch = existingBatches.reduce((rightmost, current) => {
+        return (current.x + current.width) > (rightmost.x + rightmost.width) ? current : rightmost;
+      });
+      
+      // Position new batch to the right of the rightmost existing batch
+      xOffset = rightmostBatch.x + rightmostBatch.width + 120; // 120px gap between batches
+      
+      console.log(`📍 Positioning new batch: existing rightmost at x=${rightmostBatch.x}, width=${rightmostBatch.width}, new batch at x=${xOffset}`);
+    } else {
+      console.log(`📍 First batch: positioning at default offset x=${xOffset}`);
+    }
+    
+    batch.x = xOffset;
     batch.y = template.y;
     batch.clipsContent = false;
     // Solid white background
