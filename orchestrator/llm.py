@@ -3,7 +3,7 @@ from typing import Any, Dict
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 PROVIDER = os.getenv("PROVIDER", "openai").lower()
-MODEL = os.getenv("MODEL", "openai:gpt-4o-mini")
+MODEL = os.getenv("MODEL", "openai:gpt-5")
 
 def _parse_json(text: str) -> Dict[str, Any]:
     # Try plain JSON, then try to extract from code fences
