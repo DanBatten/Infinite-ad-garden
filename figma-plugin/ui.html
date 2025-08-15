@@ -289,6 +289,12 @@
         border: 1px solid rgba(var(--accent), 0.1);
       }
       
+      /* Success Message Styles */
+      .success-message {
+        margin-top: 16px;
+        text-align: center;
+      }
+      
       .spinner {
         width: 24px;
         height: 24px;
@@ -582,6 +588,9 @@
           <div class="spinner"></div>
           <p>Generating claims... This may take several minutes.</p>
         </div>
+        
+        <!-- Success Message (replaces loading state) -->
+        <div id="successMessage" class="success-message" style="display: none;"></div>
         
                         <!-- Job ID Display -->
                 <div id="jobIdDisplay" class="job-id-display" style="display: none;">
@@ -934,14 +943,19 @@
             loadingState.style.display = 'none';
             generateClaimsBtn.disabled = false;
     
+            // Debug: Log the entire message structure
+            console.log('Full message received:', message);
+            console.log('Message type:', typeof message);
+            console.log('Message keys:', Object.keys(message));
             
             // Store claims for viewing
             window.generatedClaims = message.claims;
             console.log('Claims received:', message.claims);
             
             // Store the job ID for ad generation
-            if (message.job_file) {
-              const jobId = message.job_file.split('/').pop().replace('.json', '');
+            console.log('Checking for job_id in message:', message.job_id);
+            if (message.job_id) {
+              const jobId = message.job_id;
               window.lastGeneratedJobId = jobId;
               console.log('Job ID stored:', jobId);
               
@@ -956,6 +970,30 @@
                 console.log('Job ID auto-populated in Ad Generation:', jobId);
               } else {
                 console.error('Job field not found in Ad Generation');
+              }
+              
+              // Show success message with Job ID
+              const successMessageDiv = document.getElementById('successMessage');
+              if (successMessageDiv) {
+                successMessageDiv.innerHTML = `
+                  <div style="text-align: center; padding: 16px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; color: #155724;">
+                    <h3 style="margin: 0 0 12px 0; color: #155724;">🎉 Claims Generated Successfully!</h3>
+                    <p style="margin: 0 0 8px 0; font-weight: bold;">Job ID: <code style="background: #fff; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${jobId}</code></p>
+                    <p style="margin: 0; font-size: 12px;">Job ID has been auto-populated in the Ad Generation section below.</p>
+                  </div>
+                `;
+                successMessageDiv.style.display = 'block';
+                
+                // Hide the loading state
+                const loadingState = document.getElementById('loadingState');
+                if (loadingState) {
+                  loadingState.style.display = 'none';
+                }
+                
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                  successMessageDiv.style.display = 'none';
+                }, 10000);
               }
               
               // Auto-populate template information in Ad Generation

@@ -71,6 +71,9 @@ def generate_claims():
         # Get the most recent job file
         latest_job = max(job_files, key=os.path.getctime)
         
+        # Extract job ID from filename (e.g., "out/abc123.json" -> "abc123")
+        job_id = latest_job.stem  # This gets the filename without extension
+        
         # Read the job file to get claims
         with open(latest_job, 'r') as f:
             job_data = json.load(f)
@@ -90,6 +93,7 @@ def generate_claims():
             'success': True,
             'message': f'Generated {len(claims)} claims for {brand_file}',
             'claims': claims,
+            'job_id': job_id,  # Send the actual job ID
             'job_file': str(latest_job),
             'total_claims': len(claims)
         })

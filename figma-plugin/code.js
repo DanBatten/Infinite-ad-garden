@@ -932,12 +932,23 @@ figma.ui.onmessage = async (msg) => {
 
     // Filter variants based on selected variations
     let filteredVariants = job.variants;
+    
+    // Debug: Show variant structure
+    console.log(`[Plugin] All variants:`, job.variants.map(v => ({
+      id: v.id,
+      layout: v.layout,
+      template_variation: v.template_variation,
+      template_name: v.template_name
+    })));
+    
     if (templateVersion && variations.length > 0) {
       filteredVariants = job.variants.filter(variant => {
         if (variant.template_variation) {
           const variantType = variant.template_variation.split('-')[1]; // Extract "portrait" or "square"
+          console.log(`[Plugin] Variant ${variant.id}: template_variation="${variant.template_variation}", extracted type="${variantType}"`);
           return variations.includes(variantType);
         }
+        console.log(`[Plugin] Variant ${variant.id}: no template_variation field, including by default`);
         return true; // Include if no template variation specified
       });
       console.log(`[Plugin] Filtered variants: ${filteredVariants.length} of ${job.variants.length} based on selected variations`);
@@ -1270,7 +1281,8 @@ figma.ui.onmessage = async (msg) => {
           figma.ui.postMessage({ 
             type: 'claims-generated', 
             claims: data.claims,
-            message: data.message
+            message: data.message,
+            job_id: data.job_id
           });
           figma.notify(`✅ ${data.message}`);
         } else {
