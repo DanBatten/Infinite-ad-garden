@@ -41,22 +41,27 @@ def _split_family_and_style(raw: str):
     return (value, "Regular")
 
 def _load_brand_txt_fonts(brand_folder: Path) -> Dict[str, str]:
-    """Best-effort parse of inputs/{brand}/brand.txt for font overrides.
-    Recognizes lines like 'Heading Font: Inter Bold' or 'heading: Inter Bold'.
-    Returns keys: heading_font, body_font, cta_font (strings as in source).
+    """Parse brand font overrides from text files.
+    Looks for:
+      - inputs/{brand}/brand.txt
+      - inputs/{brand}/brand_docs/brand.txt
+    Recognizes lines like 'Heading Font: FreightDisp Pro' or 'Body Copy Font: Parabolica'.
+    Returns keys: heading_font, body_font, cta_font.
+    Later files override earlier ones.
     """
     result: Dict[str, str] = {}
-    txt_path = brand_folder / "brand.txt"
-    if not txt_path.exists():
-        return result
-    try:
-        for line in txt_path.read_text(encoding="utf-8", errors="ignore").splitlines():
-            lower = line.strip().lower()
+    candidates = [
+        brand_folder / "brand.txt",
+        brand_folder / "brand_docs" / "brand.txt",
+    ]
+
+    def apply_from_text(text: str):
+        nonlocal result
+        for raw_line in text.splitlines():
+            lower = raw_line.strip().lower()
             if not lower:
                 continue
-            # extract value after ':' if present
-            val = line.split(":", 1)[1].strip() if ":" in line else None
-            # Accept common synonyms
+            val = raw_line.split(":", 1)[1].strip() if ":" in raw_line else None
             heading_keys = ["heading font", "headline font", "heading_typography", "headline", "title", "heading"]
             body_keys    = ["body copy font", "body font", "body_typography", "body copy", "body"]
             cta_keys     = ["cta font", "cta_typography", "cta", "button font", "button"]
@@ -66,8 +71,14 @@ def _load_brand_txt_fonts(brand_folder: Path) -> Dict[str, str]:
                 result["body_font"] = val
             elif any(k in lower for k in cta_keys) and val:
                 result["cta_font"] = val
-    except Exception:
-        pass
+
+    for path in candidates:
+        try:
+            if path.exists():
+                apply_from_text(path.read_text(encoding="utf-8", errors="ignore"))
+        except Exception:
+            continue
+
     return result
 
 # ---- LLM availability (module scope, no rebinding inside main)
