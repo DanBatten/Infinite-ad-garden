@@ -71,6 +71,13 @@ class ImageMatcher {
       for (const image of images) {
         if (image.name && image.name.includes('-')) {
           const tags = this.extractTagsFromFilename(image.name);
+          // Add inferred orientation as a tag
+          try {
+            const ori = computeOrientationTag(image.width, image.height);
+            if (ori) tags.push(ori);
+          } catch (e) {
+            // ignore
+          }
           if (tags.length > 0) {
             this.imageAssets.push({
               id: image.id,
@@ -287,6 +294,8 @@ class ImageMatcher {
 
 // Initialize image matcher
 const imageMatcher = new ImageMatcher();
+// Cache for template requirements parsed from Guide frames (by full Template- name)
+let templateRequirementsCache = {};
 
 // Session counter for unique frame names
 let sessionRunCounter = 0;
@@ -326,6 +335,13 @@ globalThis.alignBatchHeights = () => {
   }
 };
 
+function computeOrientationTag(w, h) {
+  if (!w || !h) return null;
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.05) return 'square';
+  return ratio > 1 ? 'landscape' : 'portrait';
+}
+
 // Function to place best matching image in ad
 async function placeBestImageForHeadline(headline, targetFrame) {
   try {
@@ -360,6 +376,89 @@ async function placeBestImageForHeadline(headline, targetFrame) {
     return clonedImage;
   } catch (error) {
     console.error('Error placing image:', error);
+    return null;
+  }
+}
+
+// New: pick best image for a variant using headline/messages + guide #IMAGE.weights and orientation
+async function placeBestImageForVariant(variant, frame, imagePlaceholder, cleanTemplateName) {
+  try {
+    if (imageMatcher.imageAssets.length === 0) {
+      await imageMatcher.scanForTaggedImages();
+    }
+
+    // Build query text from variant fields
+    const parts = [];
+    // Include headline-like fields
+    const vEntries = Object.entries(variant || {});
+    for (const [k, v] of vEntries) {
+      if (typeof v !== 'string') continue;
+      const key = String(k).toLowerCase();
+      if (key === 'headline' || key.includes('headline') || key.includes('#headline') || key.startsWith('#h1') || key === 'h1') {
+        parts.push(v);
+      }
+    }
+    // Also include message/value prop style fields
+    for (const [k, v] of vEntries) {
+      if (typeof v !== 'string') continue;
+      const key = String(k).toLowerCase();
+      if (key.includes('message') || key.includes('msg') || key.includes('value_prop')) {
+        parts.push(v);
+      }
+    }
+
+    // Add weights from guide if available
+    const fullTemplateKey = cleanTemplateName ? `Template-${cleanTemplateName}` : (variant && variant.template_name);
+    const guide = fullTemplateKey ? templateRequirementsCache[fullTemplateKey] : null;
+    const weights = guide && guide['#IMAGE'] && guide['#IMAGE'].weights ? String(guide['#IMAGE'].weights) : '';
+    if (weights) parts.push(weights);
+
+    const query = parts.join(' \n ');
+
+    // Desired orientation from variant or placeholder
+    let desiredOrientation = null;
+    if (variant && typeof variant.template_variation === 'string') {
+      if (variant.template_variation.indexOf('square') !== -1) desiredOrientation = 'square';
+      else if (variant.template_variation.indexOf('portrait') !== -1) desiredOrientation = 'portrait';
+      else if (variant.template_variation.indexOf('landscape') !== -1) desiredOrientation = 'landscape';
+    }
+    if (!desiredOrientation && imagePlaceholder) {
+      desiredOrientation = computeOrientationTag(imagePlaceholder.width, imagePlaceholder.height);
+    }
+
+    // Rank images using existing tag-based relevance plus simple boosts from weights and orientation
+    const ranked = imageMatcher.imageAssets.map(img => {
+      // base score from headline only as before
+      const headline = (variant && typeof variant.headline === 'string') ? variant.headline : '';
+      let score = imageMatcher.scoreImageRelevance(img.tags, headline);
+
+      // boost if tags appear in weights or query text
+      const boostText = `${weights} ${query}`.toLowerCase();
+      for (const t of img.tags) {
+        if (!t) continue;
+        if (boostText.indexOf(t) !== -1) score += 1.0;
+      }
+
+      // orientation bonus
+      if (desiredOrientation && img.tags.indexOf(desiredOrientation) !== -1) score += 2.0;
+
+      return { img, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const pick = ranked.length ? ranked[0].img : null;
+    if (!pick) return null;
+
+    // Clone and place
+    const cloned = pick.node.clone();
+    cloned.x = imagePlaceholder.x;
+    cloned.y = imagePlaceholder.y;
+    cloned.resize(imagePlaceholder.width, imagePlaceholder.height);
+    frame.insertChild(0, cloned);
+    imagePlaceholder.visible = false;
+    console.log(`🖼️ Placed best image "${pick.name}" (score ${ranked[0].score}) for template ${fullTemplateKey}`);
+    return cloned;
+  } catch (err) {
+    console.error('Error in placeBestImageForVariant:', err);
     return null;
   }
 }
@@ -470,6 +569,13 @@ async function getFontIndex() {
 
 // normalize: lower-case, strip spaces, dashes, punctuation
 function norm(s) { return String(s || "").toLowerCase().replace(/[\s_\-./]+/g, ""); }
+// Optional family alias map to handle common naming differences between brand docs and Figma
+const FAMILY_ALIASES = {
+  // normalized source -> normalized figma family
+  "freightdisppro": "freightdisplaypro",
+  "freightdisp": "freightdisplaypro",
+  "freightdisplay": "freightdisplaypro",
+};
 const BOLDISH = ["bold","semibold","semibld","demibold","demibld","medium","heavy","black"];
 const REGULARISH = ["regular","book","normal","roman"];
 
@@ -478,8 +584,11 @@ async function resolveFontOrNull(family, style) {
   
   try {
     const fontIndex = await getFontIndex();
-    const normalizedFamily = norm(family);
+    let normalizedFamily = norm(family);
     const normalizedStyle = norm(style);
+    if (FAMILY_ALIASES[normalizedFamily]) {
+      normalizedFamily = FAMILY_ALIASES[normalizedFamily];
+    }
     
     // Find exact match first
     for (const font of fontIndex) {
@@ -494,6 +603,17 @@ async function resolveFontOrNull(family, style) {
       if (norm(font.fontName.family) === normalizedFamily) {
         return font.fontName;
       }
+    }
+
+    // Fuzzy family matching: includes/startsWith
+    const families = Array.from(new Set(fontIndex.map(f => f.fontName.family)));
+    const normalizedFamilies = families.map(f => ({ raw: f, n: norm(f) }));
+    // Try includes or startsWith either direction
+    const fuzzy = normalizedFamilies.find(ff => ff.n.includes(normalizedFamily) || normalizedFamily.includes(ff.n));
+    if (fuzzy) {
+      // Pick the first style available for that family
+      const anyFont = fontIndex.find(f => norm(f.fontName.family) === norm(fuzzy.raw));
+      if (anyFont) return anyFont.fontName;
     }
     
     return null;
@@ -793,11 +913,15 @@ async function buildVariant(template, v) {
     
     // Set the text if we found a matching node
     if (textNode) {
-      const fontFamily = fieldName === 'headline' ? headingFamily : bodyFamily;
-      const fontStyle = fieldName === 'headline' ? headingStyle : bodyStyle;
-      
+      const upper = String(fieldName || '').toUpperCase();
+      const isHeadlineField = (fieldName === 'headline') || upper.includes('HEADLINE') || upper.includes('#HEADLINE') || upper === 'H1' || upper === '#H1' || upper === 'TITLE';
+      const isCtaField = (fieldName === 'cta') || upper.includes('CTA') || upper.includes('#CTA') || upper.includes('CALL TO ACTION');
+
+      const fontFamily = isHeadlineField ? (headingFamily || bodyFamily) : bodyFamily;
+      const fontStyle = isHeadlineField ? (headingStyle || 'Regular') : (isCtaField ? (ctaStyle || 'Bold') : (bodyStyle || 'Regular'));
+
       await setText(textNode, fieldValue, fontFamily, fontStyle);
-      console.log(`✅ Set ${fieldName}: "${fieldValue}"`);
+      console.log(`✅ Set ${fieldName}: "${fieldValue}" using ${fontFamily || 'inherited'} / ${fontStyle}`);
     } else {
       console.log(`⚠️ No text node found for field: ${fieldName}`);
     }
@@ -813,22 +937,12 @@ async function buildVariant(template, v) {
   if (imagePlaceholder) {
     console.log(`🔍 Found image placeholder: ${imagePlaceholder.name}`);
     
-    // Try to place best matching tagged image, fallback to URL if no match
+    // Try to place best matching tagged image using variant context + guide weights
     try {
-      const bestImage = await placeBestImageForHeadline(v.headline, frame);
-      if (bestImage) {
-        // Position the image over the image placeholder
-        bestImage.x = imagePlaceholder.x;
-        bestImage.y = imagePlaceholder.y;
-        bestImage.resize(imagePlaceholder.width, imagePlaceholder.height);
-        
-        // Move the image to the bottom of the layer stack (behind text)
-        frame.insertChild(0, bestImage);
-        
-        // Hide the original image placeholder since we're using a tagged image
-        imagePlaceholder.visible = false;
-        
-        console.log(`🖼️ Successfully placed tagged image for headline: "${v.headline}"`);
+      const cleanTemplateName = (v && v.template_name) ? v.template_name.replace(/^Template-/, '') : null;
+      const placed = await placeBestImageForVariant(v, frame, imagePlaceholder, cleanTemplateName);
+      if (placed) {
+        // already positioned inside helper
       } else {
         // Smart fallback: try to find any product image if no good match
         const fallbackImage = await findFallbackProductImage();
@@ -1213,6 +1327,13 @@ figma.ui.onmessage = async (msg) => {
       console.log(`[Plugin] Template frame names:`, templateFrames.map(f => f.name));
       console.log(`[Plugin] Template requirements mapping:`, Object.entries(templateRequirements).map(([key, value]) => `${key} -> ${value.template_name}`));
       
+      // Also cache template requirements locally for image matching
+      try {
+        templateRequirementsCache = templateRequirements || {};
+      } catch (e) {
+        templateRequirementsCache = {};
+      }
+
       figma.ui.postMessage({
         type: 'templates-scanned',
         templates: templateFrames.map(f => ({
