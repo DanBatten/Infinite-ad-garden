@@ -195,7 +195,7 @@ def main():
     # ---- VARIANTS
     variants = []
     
-    # Determine template name for variants
+    # Determine template name for variants (always use tmpl_name subsequently)
     if template_name:
         tmpl_name = template_name
         print(f"[IAG] Using specified template: {tmpl_name}", flush=True)
@@ -303,7 +303,8 @@ def main():
                             "bodyStyle": body_style or "Regular",
                             "ctaStyle": cta_style or "Bold",
                         },
-                        "template_name": template_name,
+                        # Always set the template name we actually used
+                        "template_name": tmpl_name,
                         "template_variation": variation.name,
                         "aspect_ratio": variation.aspect_ratio,
                         "dimensions": variation.dimensions
@@ -332,7 +333,8 @@ def main():
                         "bodyStyle": body_style or "Regular",
                         "ctaStyle": cta_style or "Bold",
                     },
-                    "template_name": template_name,
+                    # Always set the template name we actually used
+                    "template_name": tmpl_name,
                     "template_variation": template_variation,
                 }
                 
