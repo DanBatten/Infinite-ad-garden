@@ -8,7 +8,6 @@ from typing import Dict, Any, List
 
 from orchestrator.storage import save_job
 from orchestrator.compliance import validate_claim
-from orchestrator.generators import image_brief, generate_image_url
 
 def load_json(p: str) -> Dict[str, Any]:
     return json.load(open(p, "r", encoding="utf-8"))
