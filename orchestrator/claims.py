@@ -2,6 +2,7 @@
 from typing import Dict, Any, List
 from .llm import llm_json
 from .knowledge import load_knowledge_texts
+import os
 from .prompt_templates import (
     CLAIMS_SYSTEM,
     CLAIMS_USER,
@@ -69,7 +70,15 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
 
     # Lightweight RAG: attach concise brand/global knowledge as a prefix note
     brand_name = brand.get("name", "")
-    kb = load_knowledge_texts(brand_name, max_chars=12000)
+    # Knowledge influence budgets
+    infl = os.getenv("KNOWLEDGE_INFLUENCE", "medium").lower()
+    budgets = {
+        "low": (1000, 1000),
+        "medium": (3000, 3000),
+        "high": (6000, 6000),
+    }
+    brand_chars, global_chars = budgets.get(infl, budgets["medium"]) 
+    kb = load_knowledge_texts(brand_name, brand_chars=brand_chars, global_chars=global_chars)
     if kb:
         user = f"""[REFERENCE DOCS]\n{kb}\n\n[INSTRUCTION]\n{user}"""
     out = llm_json(CLAIMS_SYSTEM, user) or {}
@@ -129,8 +138,11 @@ def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any],
         elif isinstance(template_requirements, dict) and template_requirements.get('metadata'):
             template_guidance = template_requirements['metadata'].get('prompt_guidance', '')
         
-        # Include knowledge (tighter cap to avoid request/tooling errors)
-        kb = load_knowledge_texts(brand.get("name",""), max_chars=4000)
+        # Include knowledge with independent budgets for brand/global
+        infl = os.getenv("KNOWLEDGE_INFLUENCE", "medium").lower()
+        budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
+        b_chars, g_chars = budgets.get(infl, budgets["medium"]) 
+        kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
         prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
 
         user = f"""{prefix}Tone: {brand.get("tone", "")}
@@ -159,7 +171,10 @@ JSON:"""
     else:
         # Fallback to default structure if no template requirements
         # Include knowledge
-        kb = load_knowledge_texts(brand.get("name",""), max_chars=4000)
+        infl = os.getenv("KNOWLEDGE_INFLUENCE", "medium").lower()
+        budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
+        b_chars, g_chars = budgets.get(infl, budgets["medium"]) 
+        kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
         prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
 
         user = prefix + EXPAND_USER.format(

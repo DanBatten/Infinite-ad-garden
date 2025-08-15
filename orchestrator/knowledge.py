@@ -37,30 +37,32 @@ def _collect_from_dir(dir_path: Path, remaining: int) -> str:
     return "".join(chunks)
 
 
-def load_knowledge_texts(brand_name: str, max_chars: int = 12000) -> str:
+def load_knowledge_texts(brand_name: str, brand_chars: int = 3000, global_chars: int = 3000) -> str:
     """
     Aggregate lightweight reference text from:
     - Global: inputs/ad_KnowledgeBase/creative_examples
     - Brand: inputs/{brand}/knowledge/creative_assets
 
-    Returns a single concatenated string capped at max_chars.
+    Character budgets are provided independently for brand and global.
     """
-    remaining = max(0, int(max_chars))
+    brand_budget = max(0, int(brand_chars))
+    global_budget = max(0, int(global_chars))
 
     global_dir = Path("inputs/ad_KnowledgeBase/creative_examples")
     brand_dir = Path(f"inputs/{brand_name}/knowledge/creative_assets")
 
     out_parts: List[str] = []
 
-    # Prefer brand first so it's prioritized
-    brand_block = _collect_from_dir(brand_dir, remaining)
-    if brand_block:
-        out_parts.append("\n\n### BRAND KNOWLEDGE ###\n")
-        out_parts.append(brand_block)
-        remaining -= len(brand_block) + len(out_parts[-2])
+    # Brand knowledge (priority)
+    if brand_budget > 0:
+        brand_block = _collect_from_dir(brand_dir, brand_budget)
+        if brand_block:
+            out_parts.append("\n\n### BRAND KNOWLEDGE ###\n")
+            out_parts.append(brand_block)
 
-    if remaining > 0:
-        global_block = _collect_from_dir(global_dir, remaining)
+    # Global knowledge
+    if global_budget > 0:
+        global_block = _collect_from_dir(global_dir, global_budget)
         if global_block:
             out_parts.append("\n\n### GLOBAL KNOWLEDGE ###\n")
             out_parts.append(global_block)
