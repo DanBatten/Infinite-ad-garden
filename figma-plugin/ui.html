@@ -377,37 +377,7 @@
         background: #a8a8a8;
       }
 
-      .job-id-display {
-        background: white;
-        border-radius: 8px;
-        padding: 16px;
-        margin-top: 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      }
 
-      .job-id-container {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-
-      .job-id-container input {
-        flex: 1;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-family: monospace;
-        font-size: 14px;
-        background: #f8f9fa;
-      }
-
-      .job-id-note {
-        font-size: 12px;
-        color: #666;
-        margin: 0;
-        font-style: italic;
-      }
 
       /* Brand Management Styles */
       .brand-status {
@@ -592,15 +562,7 @@
         <!-- Success Message (replaces loading state) -->
         <div id="successMessage" class="success-message" style="display: none;"></div>
         
-                        <!-- Job ID Display -->
-                <div id="jobIdDisplay" class="job-id-display" style="display: none;">
-                  <h4>Generated Job ID</h4>
-                  <div class="job-id-container">
-                    <input type="text" id="generatedJobId" readonly value="" />
-                    <button id="copyJobId" class="secondary-button">Copy</button>
-                  </div>
-                  <p class="job-id-note">Use this Job ID in the Ad Generation section</p>
-                </div>
+
 
                 <!-- Claims Display -->
                 <div id="claimsDisplay" class="claims-display" style="display: none;">
@@ -943,33 +905,27 @@
             loadingState.style.display = 'none';
             generateClaimsBtn.disabled = false;
     
-            // Debug: Log the entire message structure
-            console.log('Full message received:', message);
-            console.log('Message type:', typeof message);
-            console.log('Message keys:', Object.keys(message));
+            // Debug: Log essential message info
+            console.log('Claims generated successfully, Job ID:', message.job_id);
             
             // Store claims for viewing
             window.generatedClaims = message.claims;
-            console.log('Claims received:', message.claims);
             
             // Store the job ID for ad generation
-            console.log('Checking for job_id in message:', message.job_id);
             if (message.job_id) {
               const jobId = message.job_id;
               window.lastGeneratedJobId = jobId;
               console.log('Job ID stored:', jobId);
               
-              // Show job ID display
-              document.getElementById('generatedJobId').value = jobId;
-              document.getElementById('jobIdDisplay').style.display = 'block';
+              // Job ID display removed - just auto-populate the field
               
               // Auto-populate the Job ID field in Ad Generation
               const jobField = document.getElementById('job');
               if (jobField) {
                 jobField.value = jobId;
-                console.log('Job ID auto-populated in Ad Generation:', jobId);
+                console.log('✅ Job ID auto-populated:', jobId);
               } else {
-                console.error('Job field not found in Ad Generation');
+                console.error('❌ Job field not found in Ad Generation');
               }
               
               // Show success message with Job ID
@@ -1050,9 +1006,9 @@
             }
           }
           
-          // Handle templates scanned from Figma
-          if (type === 'templates-scanned') {
-            console.log('Templates scanned from Figma:', message.templates);
+                      // Handle templates scanned from Figma
+            if (type === 'templates-scanned') {
+              console.log('🔍 Templates scanned:', message.templates.length, 'templates found');
             
             // Update the templates status display
             const templatesStatus = document.getElementById('templatesStatus');
