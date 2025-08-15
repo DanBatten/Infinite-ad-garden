@@ -6,33 +6,32 @@ class ImageMatcher {
     this.imageAssets = [];
     this.threshold = 70; // Default threshold (70%)
     this.tagWeights = {
-      // Generic category weights (brand-agnostic)
+      // Category weights
       'lifestyle': 3,
       'product': 2,
       'portrait': 2,
       'abstract': 1,
-      'hero': 2,
-      'background': 1,
-      'supporting': 1,
       
-      // Generic mood/style weights
+      // Mood/Style weights
+      'fitness': 2,
       'sophisticated': 2,
       'playful': 1.5,
       'serene': 1.5,
       'empowering': 2,
       'natural': 1.5,
-      'modern': 2,
-      'classic': 1.5,
-      'vibrant': 1.5,
-      'minimal': 1.5,
       
-      // Generic content weights
+      // Content weights
       'model': 2,
-      'person': 2,
-      'object': 1.5,
-      'scene': 1.5,
-      'texture': 1,
-      'pattern': 1
+      'supplement_bottle': 2,
+      'capsules': 1.5,
+      'yoga_pose': 1.5,
+      'hair_care': 1.5,
+      
+      // Context weights
+      'product': 2,
+      'background': 1,
+      'hero': 2,
+      'supporting': 1
     };
   }
 
@@ -41,19 +40,15 @@ class ImageMatcher {
     try {
       console.log('🔍 Starting image scan...');
       
-      // First, find the BrandAssets frame by searching through the current page only
-      const allFrames = figma.currentPage.findAll(node => node.type === 'FRAME');
-      console.log(`📁 Found ${allFrames.length} total frames on current page:`, allFrames.map(f => f.name));
+      // First, find the BrandAssets frame by searching through all frames
+      const allFrames = figma.root.findAll(node => node.type === 'FRAME');
+      console.log(`📁 Found ${allFrames.length} total frames:`, allFrames.map(f => f.name));
       
       const brandAssetsFrame = allFrames.find(frame => frame.name === 'BrandAssets');
       
       if (!brandAssetsFrame) {
         console.log('⚠️ BrandAssets frame not found. Please create a frame named "BrandAssets" and add your tagged images there.');
         console.log('💡 Available frames:', allFrames.map(f => f.name));
-        console.log('💡 To fix this:');
-        console.log('   1. Create a frame named "BrandAssets" on the current page');
-        console.log('   2. Add images to it with names like "Lifestyle-modern-portrait.png"');
-        console.log('   3. Use dashes to separate tags (e.g., "Product-sophisticated-object.png")');
         return [];
       }
       
@@ -76,6 +71,13 @@ class ImageMatcher {
       for (const image of images) {
         if (image.name && image.name.includes('-')) {
           const tags = this.extractTagsFromFilename(image.name);
+          // Add inferred orientation as a tag
+          try {
+            const ori = computeOrientationTag(image.width, image.height);
+            if (ori) tags.push(ori);
+          } catch (e) {
+            // ignore
+          }
           if (tags.length > 0) {
             this.imageAssets.push({
               id: image.id,
@@ -83,25 +85,11 @@ class ImageMatcher {
               tags: tags,
               node: image
             });
-            console.log(`✅ Tagged image: "${image.name}" → Tags: [${tags.join(', ')}]`);
-          } else {
-            console.log(`⚠️ Image "${image.name}" has dashes but no valid tags extracted`);
           }
-        } else {
-          console.log(`⚠️ Image "${image.name}" doesn't use dash-separated naming convention`);
-          console.log(`   Use format: "Category-Mood-Content.png" (e.g., "Lifestyle-modern-portrait.png")`);
         }
       }
       
       console.log(`📸 Found ${this.imageAssets.length} tagged images in BrandAssets frame:`, this.imageAssets.map(img => img.name));
-      
-      if (this.imageAssets.length === 0) {
-        console.log('❌ No tagged images found. To fix this:');
-        console.log('   1. Make sure images have names with dashes (e.g., "Lifestyle-modern-portrait.png")');
-        console.log('   2. Common tag categories: lifestyle, product, portrait, modern, sophisticated, natural');
-        console.log('   3. Example names: "Product-sophisticated-object.png", "Lifestyle-natural-scene.png"');
-      }
-      
       return this.imageAssets;
     } catch (error) {
       console.error('Error scanning for tagged images:', error);
@@ -138,37 +126,43 @@ class ImageMatcher {
     const categoryBonus = this.getCategoryBonus(imageTags, headlineLower);
     score += categoryBonus;
     
-
+    // Add bonus for mood/style relevance
+    const moodBonus = this.getMoodBonus(imageTags, headlineLower);
+    score += moodBonus;
     
     return score;
   }
 
-  // Get semantic matches (brand-agnostic)
+  // Get semantic matches (e.g., "beauty" matches "beautiful", "wellness" matches "healthy")
   getSemanticMatches(tag, headline) {
     const semanticMap = {
-      // Generic categories
-      'lifestyle': ['routine', 'daily', 'everyday', 'lifestyle', 'living', 'balance', 'harmony', 'way', 'approach'],
-      'product': ['product', 'item', 'solution', 'service', 'offering', 'option', 'choice'],
-      'portrait': ['person', 'individual', 'you', 'your', 'self', 'people', 'person'],
+      // Beauty & Wellness
+      'beauty': ['glow', 'radiant', 'radiance', 'beautiful', 'attractive', 'gorgeous', 'stunning', 'skin', 'complexion'],
+      'wellness': ['healthy', 'well', 'vitality', 'energy', 'boost', 'nourish', 'nourishing', 'transform'],
+      'lifestyle': ['routine', 'daily', 'everyday', 'lifestyle', 'living', 'balance', 'harmony'],
+      
+      // Product & Ingredients
+      'product': ['supplement', 'capsule', 'bottle', 'ingredient', 'formula', 'blend', 'solution'],
+      'ingredients': ['ingredient', 'extract', 'natural', 'organic', 'pure', 'clean', 'authentic'],
+      'pills': ['capsule', 'pill', 'supplement', 'tablet', 'dose'],
       
       // Mood & Style
-      'sophisticated': ['elegant', 'premium', 'luxury', 'refined', 'classy', 'upscale', 'high-end', 'professional'],
-      'playful': ['fun', 'enjoyable', 'entertaining', 'amusing', 'lighthearted', 'cheerful'],
-      'serene': ['calm', 'peaceful', 'tranquil', 'relaxed', 'gentle', 'smooth'],
-      'empowering': ['confident', 'strong', 'powerful', 'inspiring', 'motivational', 'encouraging'],
-      'natural': ['organic', 'pure', 'clean', 'authentic', 'earth', 'botanical', 'plant-based', 'genuine'],
-      'modern': ['contemporary', 'current', 'trendy', 'innovative', 'advanced', 'cutting-edge'],
-      'classic': ['traditional', 'timeless', 'enduring', 'established', 'proven', 'reliable'],
-      'vibrant': ['vibrant', 'energetic', 'dynamic', 'lively', 'exciting', 'colorful', 'bright'],
-      'minimal': ['simple', 'clean', 'minimalist', 'uncluttered', 'focused', 'essential'],
+      'vibey': ['vibrant', 'energetic', 'dynamic', 'lively', 'exciting', 'powerful', 'transformative'],
+      'sophisticated': ['elegant', 'premium', 'luxury', 'refined', 'classy', 'upscale', 'high-end'],
+      'natural': ['organic', 'pure', 'clean', 'authentic', 'earth', 'botanical', 'plant-based'],
       
-      // Generic content
-      'model': ['person', 'individual', 'you', 'your', 'self', 'people'],
-      'person': ['individual', 'you', 'your', 'self', 'people', 'person'],
-      'object': ['item', 'thing', 'element', 'piece', 'component'],
-      'scene': ['setting', 'environment', 'background', 'atmosphere', 'mood'],
-      'texture': ['texture', 'surface', 'feel', 'tactile', 'material'],
-      'pattern': ['pattern', 'design', 'arrangement', 'structure', 'layout']
+      // Fitness & Health
+      'fitness': ['fit', 'healthy', 'strong', 'active', 'workout', 'exercise', 'energy', 'vitality'],
+      'health': ['healthy', 'wellness', 'well-being', 'vitality', 'strength', 'energy'],
+      
+      // Model & Person
+      'model': ['person', 'woman', 'lady', 'individual', 'you', 'your', 'self'],
+      
+      // Specific Benefits
+      'hair': ['hair', 'locks', 'tresses', 'mane', 'follicle'],
+      'skin': ['skin', 'complexion', 'dermis', 'epidermis', 'texture'],
+      'mood': ['mood', 'emotion', 'feeling', 'happiness', 'joy', 'confidence'],
+      'energy': ['energy', 'vitality', 'strength', 'power', 'boost', 'recharge']
     };
     
     const matches = semanticMap[tag] || [];
@@ -183,38 +177,30 @@ class ImageMatcher {
     return score;
   }
 
-  // Get bonus for category relevance (brand-agnostic)
+  // Get bonus for category relevance
   getCategoryBonus(imageTags, headline) {
     let bonus = 0;
     
-    // Generic lifestyle/product bonuses
-    if (headline.includes('lifestyle') || headline.includes('daily') || headline.includes('routine') || 
-        headline.includes('way') || headline.includes('approach')) {
-      if (imageTags.includes('lifestyle') || imageTags.includes('portrait')) {
+    // Beauty/Wellness headlines get bonus for lifestyle/product images
+    if (headline.includes('glow') || headline.includes('radiant') || headline.includes('beauty') || 
+        headline.includes('skin') || headline.includes('transform') || headline.includes('nourish')) {
+      if (imageTags.includes('lifestyle') || imageTags.includes('product') || imageTags.includes('ingredients')) {
         bonus += 2;
       }
     }
     
-    // Generic product/service bonuses
-    if (headline.includes('product') || headline.includes('service') || headline.includes('solution') || 
-        headline.includes('offering') || headline.includes('option')) {
-      if (imageTags.includes('product') || imageTags.includes('object')) {
+    // Fitness/Energy headlines get bonus for fitness/lifestyle images
+    if (headline.includes('energy') || headline.includes('boost') || headline.includes('vitality') || 
+        headline.includes('strength') || headline.includes('active')) {
+      if (imageTags.includes('fitness') || imageTags.includes('lifestyle')) {
         bonus += 2;
       }
     }
     
-    // Generic mood/style bonuses
-    if (headline.includes('sophisticated') || headline.includes('premium') || headline.includes('luxury') || 
-        headline.includes('professional') || headline.includes('elegant')) {
-      if (imageTags.includes('sophisticated') || imageTags.includes('modern')) {
-        bonus += 2;
-      }
-    }
-    
-    // Generic natural/organic bonuses
+    // Natural/Organic headlines get bonus for natural/ingredient images
     if (headline.includes('natural') || headline.includes('organic') || headline.includes('pure') || 
-        headline.includes('authentic') || headline.includes('genuine')) {
-      if (imageTags.includes('natural') || imageTags.includes('texture')) {
+        headline.includes('ingredient') || headline.includes('extract')) {
+      if (imageTags.includes('natural') || imageTags.includes('ingredients') || imageTags.includes('vibey')) {
         bonus += 2;
       }
     }
@@ -222,7 +208,28 @@ class ImageMatcher {
     return bonus;
   }
 
-
+  // Get bonus for mood/style relevance
+  getMoodBonus(imageTags, headline) {
+    let bonus = 0;
+    
+    // Sophisticated/premium headlines get bonus for sophisticated images
+    if (headline.includes('premium') || headline.includes('luxury') || headline.includes('elegant') || 
+        headline.includes('refined') || headline.includes('upscale')) {
+      if (imageTags.includes('sophisticated') || imageTags.includes('direct')) {
+        bonus += 1.5;
+      }
+    }
+    
+    // Dynamic/energetic headlines get bonus for vibey images
+    if (headline.includes('transform') || headline.includes('supercharge') || headline.includes('elevate') || 
+        headline.includes('powerful') || headline.includes('dynamic')) {
+      if (imageTags.includes('vibey') || imageTags.includes('playful')) {
+        bonus += 1.5;
+      }
+    }
+    
+    return bonus;
+  }
 
   // Find best matching image for a headline
   findBestImageForHeadline(headline) {
@@ -287,6 +294,8 @@ class ImageMatcher {
 
 // Initialize image matcher
 const imageMatcher = new ImageMatcher();
+// Cache for template requirements parsed from Guide frames (by full Template- name)
+let templateRequirementsCache = {};
 
 // Session counter for unique frame names
 let sessionRunCounter = 0;
@@ -299,63 +308,6 @@ globalThis.debugMatching = () => debugImageMatching();
 globalThis.getThreshold = () => imageMatcher.threshold;
 globalThis.setThreshold = (threshold) => imageMatcher.updateThreshold(threshold);
 globalThis.getSessionCounter = () => sessionRunCounter;
-
-// Debug function to show available images and their tags
-globalThis.debugImages = () => {
-  console.log('🔍 Available Images:');
-  if (imageMatcher.imageAssets.length === 0) {
-    console.log('No images found. Run scanImages() first.');
-    return;
-  }
-  
-  imageMatcher.imageAssets.forEach((img, index) => {
-    console.log(`${index + 1}. ${img.name}`);
-    console.log(`   Tags: ${img.tags.join(', ')}`);
-    console.log(`   Type: ${img.node.type}`);
-  });
-};
-
-// Comprehensive debug function for image matching issues
-globalThis.debugImageMatching = async () => {
-  console.log('🔍 === IMAGE MATCHING DEBUG ===');
-  
-  // Check current page
-  console.log(`📍 Current page: "${figma.currentPage.name}"`);
-  
-  // Scan for images
-  console.log('\n📸 Scanning for images...');
-  await imageMatcher.scanForTaggedImages();
-  
-  // Show what was found
-  console.log('\n📊 Image Scan Results:');
-  if (imageMatcher.imageAssets.length === 0) {
-    console.log('❌ No tagged images found!');
-    console.log('\n💡 To fix this:');
-    console.log('   1. Create a frame named "BrandAssets" on the current page');
-    console.log('   2. Add images with dash-separated names like:');
-    console.log('      - "Lifestyle-modern-portrait.png"');
-    console.log('      - "Product-sophisticated-object.png"');
-    console.log('      - "Scene-natural-texture.png"');
-    console.log('   3. Make sure images are RECTANGLE nodes with IMAGE fills');
-  } else {
-    console.log(`✅ Found ${imageMatcher.imageAssets.length} tagged images:`);
-    imageMatcher.imageAssets.forEach((img, index) => {
-      console.log(`   ${index + 1}. "${img.name}" → [${img.tags.join(', ')}]`);
-    });
-    
-    // Test matching with a sample headline
-    console.log('\n🧪 Testing with sample headline:');
-    const testHeadline = "Transform your lifestyle with modern solutions";
-    const bestMatch = imageMatcher.findBestImageForHeadline(testHeadline);
-    if (bestMatch) {
-      console.log(`✅ Best match: "${bestMatch.name}" (score: ${imageMatcher.scoreImageRelevance(bestMatch.tags, testHeadline)})`);
-    } else {
-      console.log('❌ No match found for test headline');
-    }
-  }
-  
-  console.log('\n🔍 === DEBUG COMPLETE ===');
-};
 globalThis.resetSessionCounter = () => { sessionRunCounter = 0; console.log('Session counter reset to 0'); };
 globalThis.debugBatchPositions = () => {
   const page = figma.currentPage;
@@ -382,6 +334,13 @@ globalThis.alignBatchHeights = () => {
     console.log('📍 Only one batch found, no alignment needed');
   }
 };
+
+function computeOrientationTag(w, h) {
+  if (!w || !h) return null;
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.05) return 'square';
+  return ratio > 1 ? 'landscape' : 'portrait';
+}
 
 // Function to place best matching image in ad
 async function placeBestImageForHeadline(headline, targetFrame) {
@@ -417,6 +376,89 @@ async function placeBestImageForHeadline(headline, targetFrame) {
     return clonedImage;
   } catch (error) {
     console.error('Error placing image:', error);
+    return null;
+  }
+}
+
+// New: pick best image for a variant using headline/messages + guide #IMAGE.weights and orientation
+async function placeBestImageForVariant(variant, frame, imagePlaceholder, cleanTemplateName) {
+  try {
+    if (imageMatcher.imageAssets.length === 0) {
+      await imageMatcher.scanForTaggedImages();
+    }
+
+    // Build query text from variant fields
+    const parts = [];
+    // Include headline-like fields
+    const vEntries = Object.entries(variant || {});
+    for (const [k, v] of vEntries) {
+      if (typeof v !== 'string') continue;
+      const key = String(k).toLowerCase();
+      if (key === 'headline' || key.includes('headline') || key.includes('#headline') || key.startsWith('#h1') || key === 'h1') {
+        parts.push(v);
+      }
+    }
+    // Also include message/value prop style fields
+    for (const [k, v] of vEntries) {
+      if (typeof v !== 'string') continue;
+      const key = String(k).toLowerCase();
+      if (key.includes('message') || key.includes('msg') || key.includes('value_prop')) {
+        parts.push(v);
+      }
+    }
+
+    // Add weights from guide if available
+    const fullTemplateKey = cleanTemplateName ? `Template-${cleanTemplateName}` : (variant && variant.template_name);
+    const guide = fullTemplateKey ? templateRequirementsCache[fullTemplateKey] : null;
+    const weights = guide && guide['#IMAGE'] && guide['#IMAGE'].weights ? String(guide['#IMAGE'].weights) : '';
+    if (weights) parts.push(weights);
+
+    const query = parts.join(' \n ');
+
+    // Desired orientation from variant or placeholder
+    let desiredOrientation = null;
+    if (variant && typeof variant.template_variation === 'string') {
+      if (variant.template_variation.indexOf('square') !== -1) desiredOrientation = 'square';
+      else if (variant.template_variation.indexOf('portrait') !== -1) desiredOrientation = 'portrait';
+      else if (variant.template_variation.indexOf('landscape') !== -1) desiredOrientation = 'landscape';
+    }
+    if (!desiredOrientation && imagePlaceholder) {
+      desiredOrientation = computeOrientationTag(imagePlaceholder.width, imagePlaceholder.height);
+    }
+
+    // Rank images using existing tag-based relevance plus simple boosts from weights and orientation
+    const ranked = imageMatcher.imageAssets.map(img => {
+      // base score from headline only as before
+      const headline = (variant && typeof variant.headline === 'string') ? variant.headline : '';
+      let score = imageMatcher.scoreImageRelevance(img.tags, headline);
+
+      // boost if tags appear in weights or query text
+      const boostText = `${weights} ${query}`.toLowerCase();
+      for (const t of img.tags) {
+        if (!t) continue;
+        if (boostText.indexOf(t) !== -1) score += 1.0;
+      }
+
+      // orientation bonus
+      if (desiredOrientation && img.tags.indexOf(desiredOrientation) !== -1) score += 2.0;
+
+      return { img, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const pick = ranked.length ? ranked[0].img : null;
+    if (!pick) return null;
+
+    // Clone and place
+    const cloned = pick.node.clone();
+    cloned.x = imagePlaceholder.x;
+    cloned.y = imagePlaceholder.y;
+    cloned.resize(imagePlaceholder.width, imagePlaceholder.height);
+    frame.insertChild(0, cloned);
+    imagePlaceholder.visible = false;
+    console.log(`🖼️ Placed best image "${pick.name}" (score ${ranked[0].score}) for template ${fullTemplateKey}`);
+    return cloned;
+  } catch (err) {
+    console.error('Error in placeBestImageForVariant:', err);
     return null;
   }
 }
@@ -527,6 +569,13 @@ async function getFontIndex() {
 
 // normalize: lower-case, strip spaces, dashes, punctuation
 function norm(s) { return String(s || "").toLowerCase().replace(/[\s_\-./]+/g, ""); }
+// Optional family alias map to handle common naming differences between brand docs and Figma
+const FAMILY_ALIASES = {
+  // normalized source -> normalized figma family
+  "freightdisppro": "freightdisplaypro",
+  "freightdisp": "freightdisplaypro",
+  "freightdisplay": "freightdisplaypro",
+};
 const BOLDISH = ["bold","semibold","semibld","demibold","demibld","medium","heavy","black"];
 const REGULARISH = ["regular","book","normal","roman"];
 
@@ -535,8 +584,11 @@ async function resolveFontOrNull(family, style) {
   
   try {
     const fontIndex = await getFontIndex();
-    const normalizedFamily = norm(family);
+    let normalizedFamily = norm(family);
     const normalizedStyle = norm(style);
+    if (FAMILY_ALIASES[normalizedFamily]) {
+      normalizedFamily = FAMILY_ALIASES[normalizedFamily];
+    }
     
     // Find exact match first
     for (const font of fontIndex) {
@@ -551,6 +603,17 @@ async function resolveFontOrNull(family, style) {
       if (norm(font.fontName.family) === normalizedFamily) {
         return font.fontName;
       }
+    }
+
+    // Fuzzy family matching: includes/startsWith
+    const families = Array.from(new Set(fontIndex.map(f => f.fontName.family)));
+    const normalizedFamilies = families.map(f => ({ raw: f, n: norm(f) }));
+    // Try includes or startsWith either direction
+    const fuzzy = normalizedFamilies.find(ff => ff.n.includes(normalizedFamily) || normalizedFamily.includes(ff.n));
+    if (fuzzy) {
+      // Pick the first style available for that family
+      const anyFont = fontIndex.find(f => norm(f.fontName.family) === norm(fuzzy.raw));
+      if (anyFont) return anyFont.fontName;
     }
     
     return null;
@@ -757,20 +820,25 @@ async function placeImageFill(rect, url) {
 }
 
 function findTemplate(name) {
-      const node = figma.currentPage.findOne(n => n.type === "FRAME" && n.name === name);
+  const node = figma.root.findOne(n => n.type === "FRAME" && n.name === name);
   if (!node) throw new Error(`Template frame '${name}' not found`);
   return node;
 }
 
 // ---------------- Build variant ----------------
 async function buildVariant(template, v) {
+  console.log(`🔧 Building variant for:`, v);
   const frame = template.clone();
   frame.name = `Ad/${v.id}`;
-
-  const h1   = frame.findOne(n => n.type === "TEXT" && n.name === "#H1");
-  const by   = frame.findOne(n => n.type === "TEXT" && n.name === "#BYLINE");
-  const cta  = frame.findOne(n => n.type === "TEXT" && n.name === "#CTA");
-  const hero = frame.findOne(n => n.type === "RECTANGLE" && n.name === "#IMAGE_HERO");
+  
+  // Debug: Show all text elements in the template
+  const allTextNodes = frame.findAll(n => n.type === "TEXT");
+  console.log(`🔍 Template contains ${allTextNodes.length} text elements:`, allTextNodes.map(n => n.name));
+  console.log(`🔍 Text node names:`, allTextNodes.map(n => n.name));
+  
+  // Debug: Show all rectangles (potential image placeholders)
+  const allRectangles = frame.findAll(n => n.type === "RECTANGLE");
+  console.log(`🔍 Template contains ${allRectangles.length} rectangles:`, allRectangles.map(n => n.name));
 
   // Brand fonts from job JSON (with optional styles)
   const headingFamily = (v && v.type && v.type.heading) || null;
@@ -779,67 +847,161 @@ async function buildVariant(template, v) {
   const bodyStyle     = (v && v.type && v.type.bodyStyle)    || "Regular";
   const ctaStyle      = (v && v.type && v.type.ctaStyle)     || "Bold";
 
-  await setText(h1,  v.headline, headingFamily, headingStyle);
-  await setText(by,  v.byline,   bodyFamily,    bodyStyle);
-  await setText(cta, v.cta,      headingFamily, ctaStyle);
-
-  // Try to place best matching tagged image, fallback to URL if no match
-  try {
-    const bestImage = await placeBestImageForHeadline(v.headline, frame);
-    if (bestImage) {
-      // Position the image over the hero rectangle
-      bestImage.x = hero.x;
-      bestImage.y = hero.y;
-      bestImage.resize(hero.width, hero.height);
+  // Dynamically find and populate all text elements based on what exists in the template
+  // This makes the system completely flexible to any template structure
+  
+  // Get all available text fields from the variant data
+  const textFields = Object.entries(v).filter(([key, value]) => 
+    typeof value === 'string' && value.trim() && 
+    !['id', 'layout', 'template_name', 'template_variation', 'logo_url', 'palette'].includes(key)
+  );
+  
+  console.log(`🔍 Available text fields in variant:`, textFields.map(([key, value]) => `${key}: "${value}"`));
+  
+  // For each text field, try to find a matching text node in the template
+  for (const [fieldName, fieldValue] of textFields) {
+    let textNode = null;
+    
+    // Try to find text nodes that match the field name
+    if (fieldName === 'headline') {
+      textNode = frame.findOne(n => n.type === "TEXT" && (
+        n.name.includes("HEADLINE") || n.name.includes("H1") || n.name.includes("TITLE")
+      ));
+    } else if (fieldName === 'cta') {
+      textNode = frame.findOne(n => n.type === "TEXT" && (
+        n.name.includes("CTA") || n.name.includes("CALL") || n.name.includes("ACTION")
+      ));
+    } else if (fieldName === 'value_props' && Array.isArray(fieldValue)) {
+      // Handle value_props as an array - look for numbered value prop nodes
+      const valuePropNodes = frame.findAll(n => n.type === "TEXT" && n.name.includes("VALUE_PROP"));
+      console.log(`🔍 Found ${valuePropNodes.length} value prop nodes:`, valuePropNodes.map(n => n.name));
       
-      // Move the image to the bottom of the layer stack (behind text)
-      frame.insertChild(0, bestImage);
+      // Sort them to ensure consistent ordering
+      valuePropNodes.sort((a, b) => a.name.localeCompare(b.name));
       
-      // Hide the original hero rectangle since we're using a tagged image
-      hero.visible = false;
-      
-      console.log(`🖼️ Successfully placed tagged image for headline: "${v.headline}"`);
+      // Populate each value prop node with corresponding data
+      for (let i = 0; i < Math.min(valuePropNodes.length, fieldValue.length); i++) {
+        if (fieldValue[i]) {
+          await setText(valuePropNodes[i], fieldValue[i], bodyFamily, bodyStyle);
+          console.log(`✅ Set ${valuePropNodes[i].name}: "${fieldValue[i]}"`);
+        }
+      }
+      continue; // Skip the regular text setting for arrays
     } else {
-      // Smart fallback: try to find any product image if no good match
-      const fallbackImage = await findFallbackProductImage();
-      if (fallbackImage) {
-        // Place the fallback product image
-        const clonedImage = fallbackImage.node.clone();
-        clonedImage.x = hero.x;
-        clonedImage.y = hero.y;
-        clonedImage.resize(hero.width, hero.height);
-        
-        // Move the image to the bottom of the layer stack (behind text)
-        frame.insertChild(0, clonedImage);
-        
-        // Hide the original hero rectangle
-        hero.visible = false;
-        
-        console.log(`🖼️ Using fallback product image for headline: "${v.headline}"`);
-      } else {
-        // No suitable image found - keep the original hero rectangle
-        console.log(`⚠️ No suitable image found for headline: "${v.headline}" - using default hero`);
+      // For any other field, try multiple matching strategies
+      textNode = frame.findOne(n => n.type === "TEXT" && (
+        // Strategy 1: Exact name match
+        n.name === fieldName ||
+        // Strategy 2: Name contains field name
+        n.name.toLowerCase().includes(fieldName.toLowerCase()) ||
+        // Strategy 3: Map generated field names to Figma text layer names
+        (fieldName === 'message_01' && (n.name === '#MESSAGE1' || n.name.includes('MESSAGE1') || n.name.includes('MSG1') || n.name.includes('TEXT1'))) ||
+        (fieldName === 'message_02' && (n.name === '#MESSAGE2' || n.name.includes('MESSAGE2') || n.name.includes('MSG2') || n.name.includes('TEXT2'))) ||
+        (fieldName === 'headline' && (n.name === '#HEADLINE' || n.name.includes('HEADLINE') || n.name.includes('H1') || n.name.includes('TITLE'))) ||
+        // Strategy 4: Look for common text layer naming patterns
+        n.name.includes('#') && n.name.toLowerCase().includes(fieldName.toLowerCase())
+      ));
+      
+      if (!textNode) {
+        console.log(`🔍 No exact match for ${fieldName}, trying broader search...`);
+        // Last resort: look for any text node that might be related
+        const potentialMatches = frame.findAll(n => n.type === "TEXT" && 
+          (n.name.includes('#') || n.name.includes('TEXT') || n.name.includes('LABEL')));
+        console.log(`🔍 Potential text nodes for ${fieldName}:`, potentialMatches.map(n => n.name));
       }
     }
-  } catch (error) {
-    console.log(`⚠️ Image placement failed, using fallback: ${error.message}`);
-    // Try fallback product image first
+    
+    // Set the text if we found a matching node
+    if (textNode) {
+      const upper = String(fieldName || '').toUpperCase();
+      const isHeadlineField = (fieldName === 'headline') || upper.includes('HEADLINE') || upper.includes('#HEADLINE') || upper === 'H1' || upper === '#H1' || upper === 'TITLE';
+      const isCtaField = (fieldName === 'cta') || upper.includes('CTA') || upper.includes('#CTA') || upper.includes('CALL TO ACTION');
+
+      const fontFamily = isHeadlineField ? (headingFamily || bodyFamily) : bodyFamily;
+      const fontStyle = isHeadlineField ? (headingStyle || 'Regular') : (isCtaField ? (ctaStyle || 'Bold') : (bodyStyle || 'Regular'));
+
+      await setText(textNode, fieldValue, fontFamily, fontStyle);
+      console.log(`✅ Set ${fieldName}: "${fieldValue}" using ${fontFamily || 'inherited'} / ${fontStyle}`);
+    } else {
+      console.log(`⚠️ No text node found for field: ${fieldName}`);
+    }
+  }
+
+  // Dynamically find image placeholder (could be #IMAGE, #IMAGE_HERO, #HERO, etc.)
+  const imagePlaceholder = frame.findOne(n => n.type === "RECTANGLE" && (
+    n.name.includes("IMAGE") || 
+    n.name.includes("HERO") || 
+    n.name.includes("PHOTO")
+  ));
+  
+  if (imagePlaceholder) {
+    console.log(`🔍 Found image placeholder: ${imagePlaceholder.name}`);
+    
+    // Try to place best matching tagged image using variant context + guide weights
     try {
-      const fallbackImage = await findFallbackProductImage();
-      if (fallbackImage) {
-        const clonedImage = fallbackImage.node.clone();
-        clonedImage.x = hero.x;
-        clonedImage.y = hero.y;
-        clonedImage.resize(hero.width, hero.height);
-        frame.insertChild(0, clonedImage);
-        hero.visible = false;
-        console.log(`🖼️ Using fallback product image after error for headline: "${v.headline}"`);
+      const cleanTemplateName = (v && v.template_name) ? v.template_name.replace(/^Template-/, '') : null;
+      const placed = await placeBestImageForVariant(v, frame, imagePlaceholder, cleanTemplateName);
+      if (placed) {
+        // already positioned inside helper
       } else {
-        console.log(`⚠️ No fallback image available for headline: "${v.headline}" - using default hero`);
+        // Smart fallback: try to find any product image if no good match
+        const fallbackImage = await findFallbackProductImage();
+        if (fallbackImage) {
+          // Place the fallback product image
+          const clonedImage = fallbackImage.node.clone();
+          clonedImage.x = imagePlaceholder.x;
+          clonedImage.y = imagePlaceholder.y;
+          clonedImage.resize(imagePlaceholder.width, imagePlaceholder.height);
+          
+          // Move the image to the bottom of the layer stack (behind text)
+          frame.insertChild(0, clonedImage);
+          
+          // Hide the original image placeholder
+          imagePlaceholder.visible = false;
+          
+          console.log(`🖼️ Using fallback product image for headline: "${v.headline}"`);
+        } else {
+          // Last resort: use URL-based image if available, otherwise skip
+          if (v.image_url) {
+            await placeImageFill(imagePlaceholder, v.image_url);
+            console.log(`🖼️ Using URL image as last resort for headline: "${v.headline}"`);
+          } else {
+            console.log(`⚠️ No image URL available for headline: "${v.headline}", skipping image placement`);
+          }
+        }
       }
-    } catch (fallbackError) {
-      console.log(`⚠️ All image placement failed for headline: "${v.headline}" - using default hero`);
+    } catch (error) {
+      console.log(`⚠️ Image placement failed, using fallback: ${error.message}`);
+      // Try fallback product image first
+      try {
+        const fallbackImage = await findFallbackProductImage();
+        if (fallbackImage) {
+          const clonedImage = fallbackImage.node.clone();
+          clonedImage.x = imagePlaceholder.x;
+          clonedImage.y = imagePlaceholder.y;
+          clonedImage.resize(imagePlaceholder.width, imagePlaceholder.height);
+          frame.insertChild(0, clonedImage);
+          imagePlaceholder.visible = false;
+          console.log(`🖼️ Using fallback product image after error for headline: "${v.headline}"`);
+        } else {
+          if (v.image_url) {
+            await placeImageFill(imagePlaceholder, v.image_url);
+            console.log(`🖼️ Using URL image after error for headline: "${v.headline}"`);
+          } else {
+            console.log(`⚠️ No image URL available for headline: "${v.headline}", skipping image placement`);
+          }
+        }
+      } catch (fallbackError) {
+        if (v.image_url) {
+          await placeImageFill(imagePlaceholder, v.image_url);
+          console.log(`🖼️ Using URL image as final fallback for headline: "${v.headline}"`);
+        } else {
+          console.log(`⚠️ No image URL available for headline: "${v.headline}", skipping image placement`);
+        }
+      }
     }
+  } else {
+    console.log(`⚠️ No image placeholder found in template, skipping image placement`);
   }
 
   return frame;
@@ -866,7 +1028,8 @@ figma.ui.onmessage = async (msg) => {
 
   const jobId = (msg.jobId || "").trim();
   const mode  = msg.mode || "batch";
-  const templateName = msg.template || `Template/${job.format}`;
+  const templateVersion = msg.templateVersion || "";
+  const variations = msg.variations || ["portrait", "square"];
   
 
   try {
@@ -879,16 +1042,133 @@ figma.ui.onmessage = async (msg) => {
     
     console.log(`[Plugin] Job loaded:`, job);
     console.log(`[Plugin] Job format: ${job.format}, variants: ${(job.variants && job.variants.length) || 0}`);
+    console.log(`[Plugin] Template version: ${templateVersion}, variations: ${variations.join(', ')}`);
 
-    // Match your strategy.format; your main.py sets layout = `Template/${format}`
-    const templateName = msg.template || `Template/${job.format}`;
-    console.log(`[Plugin] Looking for template: ${templateName}`);
+    // Filter variants based on selected variations
+    let filteredVariants = job.variants;
     
-    const template = findTemplate(templateName);
+    // Debug: Show variant structure
+    console.log(`[Plugin] All variants:`, job.variants.map(v => ({
+      id: v.id,
+      layout: v.layout,
+      template_variation: v.template_variation,
+      template_name: v.template_name
+    })));
+    
+    if (templateVersion && variations.length > 0) {
+      filteredVariants = job.variants.filter(variant => {
+        if (variant.template_variation) {
+          const variantType = variant.template_variation.split('-')[1]; // Extract "portrait" or "square"
+          console.log(`[Plugin] Variant ${variant.id}: template_variation="${variant.template_variation}", extracted type="${variantType}"`);
+          return variations.includes(variantType);
+        }
+        console.log(`[Plugin] Variant ${variant.id}: no template_variation field, including by default`);
+        return true; // Include if no template variation specified
+      });
+      console.log(`[Plugin] Filtered variants: ${filteredVariants.length} of ${job.variants.length} based on selected variations`);
+    }
+
+    // Use the first variant's template name as the base template
+    // This should come from the claims generation, not be constructed from job format
+    const baseTemplateName = (filteredVariants[0] && filteredVariants[0].template_name);
+    if (!baseTemplateName) {
+      throw new Error(`No template name found in variants. Please ensure claims were generated with a template.`);
+    }
+    console.log(`[Plugin] Base template name: ${baseTemplateName}`);
+    
+    // Extract the base name without "Template-" prefix for searching
+    const cleanTemplateName = baseTemplateName.replace(/^Template-/, '');
+    console.log(`[Plugin] Clean template name: ${cleanTemplateName}`);
+    
+    // Debug: Show what we're actually looking for
+    console.log(`[Plugin] Job format: ${job.format}`);
+    console.log(`[Plugin] First variant template_name: ${filteredVariants[0] && filteredVariants[0].template_name}`);
+    console.log(`[Plugin] All variant template names:`, filteredVariants.map(v => v.template_name));
+    
+    // First try to find template on the _Template_Library page
+    let template = null;
+    let templatePage = null;
+    
+    // Look for _Template_Library page
+    for (const page of figma.root.children) {
+      if (page.name === "_Template_Library") {
+        templatePage = page;
+        break;
+      }
+    }
+    
+    // Debug: Show what templates are available in the Figma file
+    if (templatePage) {
+      const availableTemplates = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        (node.name.startsWith("Template-") || node.name.startsWith("Design-") || node.name.startsWith("Guide-"))
+      );
+      console.log(`[Plugin] Available templates on _Template_Library page:`, availableTemplates.map(t => t.name));
+    }
+    
+    // Also check current page for available templates
+    const currentPageTemplates = figma.currentPage.findAll(node => 
+      node.type === "FRAME" && 
+      (node.name.startsWith("Template-") || node.name.startsWith("Design-") || node.name.startsWith("Guide-"))
+    );
+    console.log(`[Plugin] Available templates on current page:`, currentPageTemplates.map(t => t.name));
+    
+    // Try multiple template name patterns for Design frames first, then Guide frames as fallback
+    const templateNamePatterns = [
+      // Design frames (preferred for ad generation)
+      `Design-${cleanTemplateName}-${templateVersion || '01'}-${variations[0] || 'portrait'}`, // Full Design frame name
+      `Design-${cleanTemplateName}-${templateVersion || '01'}-${variations[1] || 'square'}`, // Alternative variation
+      `Design-${cleanTemplateName}-${templateVersion || '01'}`, // Design frame with version only
+      `Design-${cleanTemplateName}-portrait`, // Design frame with portrait
+      `Design-${cleanTemplateName}-square`, // Design frame with square
+      // Guide frames (fallback if Design frames not found)
+      `Guide-${cleanTemplateName}-${templateVersion || '01'}`, // Guide frame with version
+      `Guide-${cleanTemplateName}`, // Guide frame without version
+      // Also try the original template name as a fallback
+      baseTemplateName
+    ];
+    
+    console.log(`[Plugin] Trying template name patterns:`, templateNamePatterns);
+    console.log(`[Plugin] Looking for template: ${baseTemplateName}`);
+    console.log(`[Plugin] Clean template name: ${cleanTemplateName}`);
+    console.log(`[Plugin] Template version: ${templateVersion}`);
+    console.log(`[Plugin] Variations:`, variations);
+    
+    if (templatePage) {
+      console.log(`[Plugin] Looking for template on _Template_Library page`);
+      
+      // Debug: Show all available frame names on the template page
+      const allFrames = templatePage.findAll(node => node.type === "FRAME");
+      console.log(`[Plugin] Available frames on _Template_Library page:`, allFrames.map(f => f.name));
+      
+      for (const pattern of templateNamePatterns) {
+        template = templatePage.findOne(node => 
+          node.type === "FRAME" && 
+          node.name === pattern
+        );
+        if (template) {
+          console.log(`[Plugin] Found template with pattern: ${pattern}`);
+          break;
+        }
+      }
+    }
+    
+    // If not found on template page, try current page as fallback
+    if (!template) {
+      console.log(`[Plugin] Template not found on _Template_Library page, trying current page`);
+      for (const pattern of templateNamePatterns) {
+        template = findTemplate(pattern);
+        if (template) {
+          console.log(`[Plugin] Found template on current page with pattern: ${pattern}`);
+          break;
+        }
+      }
+    }
+    
     console.log(`[Plugin] Template found:`, template);
     
     if (!template) {
-      throw new Error(`Template frame '${templateName}' not found. Please ensure you have a frame named '${templateName}' in your Figma file.`);
+      throw new Error(`Template frame not found. Tried patterns: ${templateNamePatterns.join(', ')}. Please ensure you have a frame with one of these names in the _Template_Library page or current page.`);
     }
     
     const cellW = template.width;
@@ -897,12 +1177,12 @@ figma.ui.onmessage = async (msg) => {
     let i = 0;
 
     if (mode === "batch") {
-      const rows = Math.ceil(job.variants.length / 5); // Default to 5 columns
+      const rows = Math.ceil(filteredVariants.length / 5); // Default to 5 columns
       const pad  = 120; // Default gap of 120px
       sessionRunCounter++; // Increment counter for unique frame names
       const batch = ensureBatchFrame(`${job.job_id || jobId}_run${sessionRunCounter}`, template, 5, rows, 120, pad);
 
-      for (const v of job.variants) {
+      for (const v of filteredVariants) {
         const frame = await buildVariant(template, v);
         batch.appendChild(frame);
         positionFrameInGrid(frame, cellW, cellH, i, 5, 120, pad);
@@ -914,13 +1194,13 @@ figma.ui.onmessage = async (msg) => {
     } else {
       const startIndex = existingVariantCount("Ad/");
       sessionRunCounter++; // Increment counter for unique frame names
-      for (const v of job.variants) {
+      for (const v of filteredVariants) {
         const frame = await buildVariant(template, v);
         frame.x = template.x;
         frame.y = template.y + template.height + 120;
         // Add run counter to frame name to avoid conflicts
         frame.name = `${frame.name}_run${sessionRunCounter}`;
-        positionFrameInGrid(frame, cellW, cellH, startIndex + i, 5, 120, 120);
+        positionFrameInBox(frame, cellW, cellH, startIndex + i, 5, 120, 120);
         i++;
       }
       figma.notify(`Infinite Ad Garden: built ${i} variants (continued grid, run ${sessionRunCounter})`);
@@ -949,6 +1229,149 @@ figma.ui.onmessage = async (msg) => {
     });
   }
   
+  } else if (msg.type === "scan-templates") {
+    // Scan templates from Figma file
+    try {
+      console.log(`🔍 Scanning for templates in Figma file...`);
+      
+      // First, try to find the _Template_Library page
+      let templatePage = null;
+      for (const page of figma.root.children) {
+        if (page.name === "_Template_Library") {
+          templatePage = page;
+          break;
+        }
+      }
+      
+      if (!templatePage) {
+        // Fallback to current page if _Template_Library not found
+        templatePage = figma.currentPage;
+        console.log(`[Plugin] _Template_Library page not found, using current page`);
+      } else {
+        console.log(`[Plugin] Found _Template_Library page: ${templatePage.name}`);
+      }
+      
+      // Look for template frames on the template page
+      // Only show Template containers in the dropdown (parent containers)
+      // Design frames and Guide frames are found automatically when generating ads
+      const templateFrames = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        node.name && 
+        node.name.startsWith("Template-")
+      );
+      
+      // Also find all Design and Guide frames for version dropdown population
+      const allFrames = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        node.name && 
+        (node.name.startsWith("Template-") || node.name.startsWith("Design-") || node.name.startsWith("Guide-"))
+      );
+      
+      // Scan Guide frames to extract JSON template requirements
+      const guideFrames = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        node.name && 
+        node.name.startsWith("Guide-")
+      );
+      
+      console.log(`[Plugin] Found ${guideFrames.length} guide frames for template requirements`);
+      console.log(`[Plugin] Guide frame names:`, guideFrames.map(f => f.name));
+      
+      // Extract template requirements from Guide frames
+      const templateRequirements = {};
+      for (const guideFrame of guideFrames) {
+        try {
+          // Find the #GUIDE text layer within the guide frame
+          const guideTextNode = guideFrame.findOne(node => 
+            node.type === "TEXT" && 
+            node.name === "#GUIDE"
+          );
+          
+          console.log(`[Plugin] Searching for #GUIDE text in ${guideFrame.name}...`);
+          console.log(`[Plugin] All text nodes in ${guideFrame.name}:`, guideFrame.findAll(node => node.type === "TEXT").map(t => t.name));
+          
+                      if (guideTextNode && guideTextNode.characters) {
+              console.log(`[Plugin] Found #GUIDE text in ${guideFrame.name}:`, guideTextNode.characters.substring(0, 100) + "...");
+              
+              // Try to parse the JSON content
+              try {
+                const guideData = JSON.parse(guideTextNode.characters);
+                const templateName = guideData.template_name;
+                
+                if (templateName) {
+                  // Map the template name to the actual Template frame name
+                  const actualTemplateName = `Template-${templateName}`;
+                  templateRequirements[actualTemplateName] = guideData;
+                  console.log(`[Plugin] Successfully parsed guide for ${templateName}, mapped to ${actualTemplateName}:`, guideData);
+                }
+              } catch (parseError) {
+                console.log(`[Plugin] Failed to parse JSON in ${guideFrame.name}:`, parseError.message);
+              }
+            }
+        } catch (error) {
+          console.log(`[Plugin] Error processing guide frame ${guideFrame.name}:`, error.message);
+        }
+      }
+      
+      console.log(`[Plugin] Found ${templateFrames.length} template containers on ${templatePage.name}:`, templateFrames.map(f => f.name));
+      console.log(`[Plugin] Found ${allFrames.length} total frames (including Design and Guide frames)`);
+      
+      // Log each template found for debugging
+      templateFrames.forEach((frame, index) => {
+        console.log(`[Plugin] Template ${index + 1}: "${frame.name}" (${frame.width}x${frame.height})`);
+      });
+      
+      // Send the found templates to the UI to update the cache
+      console.log(`[Plugin] Sending template requirements to UI:`, templateRequirements);
+      console.log(`[Plugin] Template requirements keys:`, Object.keys(templateRequirements));
+      console.log(`[Plugin] Template frame names:`, templateFrames.map(f => f.name));
+      console.log(`[Plugin] Template requirements mapping:`, Object.entries(templateRequirements).map(([key, value]) => `${key} -> ${value.template_name}`));
+      
+      // Also cache template requirements locally for image matching
+      try {
+        templateRequirementsCache = templateRequirements || {};
+      } catch (e) {
+        templateRequirementsCache = {};
+      }
+
+      figma.ui.postMessage({
+        type: 'templates-scanned',
+        templates: templateFrames.map(f => ({
+          name: f.name,
+          type: f.type,
+          width: f.width,
+          height: f.height
+        })),
+        allFrames: allFrames.map(f => ({
+          name: f.name,
+          type: f.type,
+          width: f.width,
+          height: f.height
+        })),
+        templateRequirements: templateRequirements
+      });
+      
+      figma.notify(`Found ${templateFrames.length} template frames on ${templatePage.name}`);
+      
+      // Send success status to UI
+      figma.ui.postMessage({
+        type: 'status',
+        message: `Template scanning completed: Found ${templateFrames.length} templates on ${templatePage.name}`,
+        status: 'success'
+      });
+      
+    } catch (error) {
+      console.error('Error scanning templates:', error);
+      figma.notify(`Error scanning templates: ${error.message}`);
+      
+      // Send error status to UI
+      figma.ui.postMessage({
+        type: 'status',
+        message: `Error scanning templates: ${error.message}`,
+        status: 'error'
+      });
+    }
+    
   } else if (msg.type === "generate-claims") {
     // Generate claims using the existing system
     try {
@@ -969,7 +1392,10 @@ figma.ui.onmessage = async (msg) => {
         body: JSON.stringify({
           brandFile: msg.brandFile,
           claimCount: msg.claimCount,
-          claimStyle: msg.claimStyle
+          claimStyle: msg.claimStyle,
+          templateName: msg.templateName,
+          knowledgeAdInfluence: msg.knowledgeAdInfluence || 'medium',
+          knowledgeBrandInfluence: msg.knowledgeBrandInfluence || 'medium'
         })
       })
       .then(response => response.json())
@@ -979,7 +1405,7 @@ figma.ui.onmessage = async (msg) => {
             type: 'claims-generated', 
             claims: data.claims,
             message: data.message,
-            job_file: data.job_file
+            job_id: data.job_id
           });
           figma.notify(`✅ ${data.message}`);
         } else {

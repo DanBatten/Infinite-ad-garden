@@ -1,5 +1,44 @@
-Brand: Metra
-Product: Holistic Beauty Supplement Capsules
-Ingredients: Lustriva, DE-111, Affron, Chromax, Biotin, Collagen, Hyaluronic Acid, Vitamin C, Vitamin E, Zinc, Selenium
-Headline Font: FreightDisp Pro
-Body Copy Font: Parabolica
+{
+  "brand": {
+    "name": "Metra"
+  },
+  "product": {
+    "name": "Holistic Beauty Supplement",
+    "ingredients": [
+      "Lustriva",
+      "DE-111",
+      "Affron",
+      "Chromax",
+      "Biotin",
+      "Collagen",
+      "Hyaluronic Acid",
+      "Vitamin C",
+      "Vitamin E",
+      "Zinc",
+      "Selenium"
+    ]
+  },
+  "assets": {
+    "logo_url": "http://localhost:8001/static/images/metra_logo.png"
+  },
+  "colors": {
+    "palette": [
+      { "name": "Deep Red",   "hex": "#AD1231" },
+      { "name": "White",      "hex": "#FFFFFF" },
+      { "name": "Deep Brown", "hex": "#2D040C" },
+      { "name": "Orange",     "hex": "#FF842A" },
+      { "name": "Soft Green", "hex": "#9BCFB3" }
+    ],
+    "roles": {
+      "primary":   "Deep Red",
+      "secondary": "Deep Brown",
+      "accent":    "Orange",
+      "background": ["primary", "secondary"],
+      "text":      "White"
+    }
+  },
+  "typography": {
+    "heading": { "family": "FreightDisp Pro", "style": "Regular" },
+    "body":    { "family": "Parabolica",      "style": "Regular" }
+  }
+}

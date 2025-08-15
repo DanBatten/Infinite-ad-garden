@@ -8,10 +8,82 @@ from typing import Dict, Any, List
 
 from orchestrator.storage import save_job
 from orchestrator.compliance import validate_claim
-
+from orchestrator.generators import image_brief, generate_image_url
 
 def load_json(p: str) -> Dict[str, Any]:
     return json.load(open(p, "r", encoding="utf-8"))
+
+def _split_family_and_style(raw: str):
+    """Split a font string like 'Inter Bold' -> ('Inter', 'Bold').
+    If only family provided, default style to 'Regular'.
+    Accepts 'Semi Bold' and other spaced styles.
+    """
+    if not raw:
+        return (None, None)
+    value = str(raw).strip()
+    # Known styles, longer first
+    known_styles = [
+        "Extra Black", "ExtraBold", "Extra Bold",
+        "SemiBold", "Semi Bold", "DemiBold", "Demi Bold",
+        "Black", "Bold", "Medium", "Light", "Thin", "Regular", "Book", "Roman"
+    ]
+    # Try exact suffix match
+    for style in known_styles:
+        if value.lower().endswith(style.lower()):
+            family = value[:-len(style)].strip()
+            # Normalize style spacing (e.g., 'Semi Bold' -> 'SemiBold')
+            normalized_style = style.replace(" ", "") if style in ["Semi Bold", "Demi Bold", "Extra Bold", "Extra Black"] else style
+            return (family or value, normalized_style)
+    # Fallback: only treat last token as style if it's a known style token
+    parts = value.split()
+    if len(parts) > 1:
+        last_token = parts[-1]
+        if last_token.lower() in [s.lower() for s in known_styles]:
+            return (" ".join(parts[:-1]).strip(), last_token)
+        # Otherwise, the entire value is the family; default style Regular
+        return (value, "Regular")
+    return (value, "Regular")
+
+def _load_brand_txt_fonts(brand_folder: Path) -> Dict[str, str]:
+    """Parse brand font overrides from text files.
+    Looks for:
+      - inputs/{brand}/brand.txt
+      - inputs/{brand}/brand_docs/brand.txt
+    Recognizes lines like 'Heading Font: FreightDisp Pro' or 'Body Copy Font: Parabolica'.
+    Returns keys: heading_font, body_font, cta_font.
+    Later files override earlier ones.
+    """
+    result: Dict[str, str] = {}
+    candidates = [
+        brand_folder / "brand.txt",
+        brand_folder / "brand_docs" / "brand.txt",
+    ]
+
+    def apply_from_text(text: str):
+        nonlocal result
+        for raw_line in text.splitlines():
+            lower = raw_line.strip().lower()
+            if not lower:
+                continue
+            val = raw_line.split(":", 1)[1].strip() if ":" in raw_line else None
+            heading_keys = ["heading font", "headline font", "heading_typography", "headline", "title", "heading"]
+            body_keys    = ["body copy font", "body font", "body_typography", "body copy", "body"]
+            cta_keys     = ["cta font", "cta_typography", "cta", "button font", "button"]
+            if any(k in lower for k in heading_keys) and val:
+                result["heading_font"] = val
+            elif any(k in lower for k in body_keys) and val:
+                result["body_font"] = val
+            elif any(k in lower for k in cta_keys) and val:
+                result["cta_font"] = val
+
+    for path in candidates:
+        try:
+            if path.exists():
+                apply_from_text(path.read_text(encoding="utf-8", errors="ignore"))
+        except Exception:
+            continue
+
+    return result
 
 # ---- LLM availability (module scope, no rebinding inside main)
 HAS_LLM = False
@@ -40,11 +112,19 @@ def main():
     claim_count = int(os.environ.get('CLAIM_COUNT', 30))
     claim_style = os.environ.get('CLAIM_STYLE', 'balanced')
     
+    # New: Read template information
+    template_name = os.environ.get('TEMPLATE_NAME')
+    template_variation = os.environ.get('TEMPLATE_VARIATION')
+    
     # Override config values with API parameters
     n = claim_count  # Use the actual requested count instead of hardcoded 30
     per_angle = max(claim_count // 4, 2)  # Distribute claims across angles
     
     print(f"[IAG] Requested: {claim_count} claims, style: {claim_style}", flush=True)
+    if template_name:
+        print(f"[IAG] Template: {template_name}", flush=True)
+        if template_variation:
+            print(f"[IAG] Variation: {template_variation}", flush=True)
     print(f"[IAG] Will generate {per_angle} claims per angle", flush=True)
 
     use_llm = HAS_LLM and (not FORCE_MOCK)
@@ -115,44 +195,168 @@ def main():
 
     # ---- VARIANTS
     variants = []
-    tmpl_name = f"Template/{strategy['format']}"  # e.g. Template/1080x1440
+    
+    # Determine template name for variants
+    if template_name:
+        tmpl_name = template_name
+        print(f"[IAG] Using specified template: {tmpl_name}", flush=True)
+    else:
+        tmpl_name = f"Template/{strategy['format']}"  # e.g. Template/1080x1440
+        print(f"[IAG] Using default template: {tmpl_name}", flush=True)
+
+    # Get template requirements for copy expansion
+    template_requirements = None
+    template_variations = []
+    if template_name:
+        try:
+            from orchestrator.templates import template_manager
+            template_requirements = template_manager.get_claims_requirements(template_name, template_variation)
+            
+            # Get all variations (portrait, square) for the selected version
+            if template_variation:
+                template_variations = template_manager.get_variations_by_version(template_name, template_variation)
+                print(f"[IAG] Template version {template_variation} has {len(template_variations)} variations (portrait/square)", flush=True)
+            else:
+                # If no version specified, get all variations
+                template_variations = template_manager.get_all_variations_for_template(template_name)
+                print(f"[IAG] All template variations loaded: {len(template_variations)} total", flush=True)
+                
+            print(f"[IAG] Template requirements loaded: {len(template_requirements.get('elements', []))} elements", flush=True)
+        except ImportError:
+            print("[IAG] Template manager not available, proceeding without template requirements", flush=True)
+
+    # Derive brand fonts from enhanced JSON, with optional overrides from brand.txt
+    brand_folder = Path(f"inputs/{brand_file}")
+    brand_txt_fonts = _load_brand_txt_fonts(brand_folder)
+    # Base from enhanced JSON
+    heading_family_json = brand.get("type", {}).get("heading") or brand.get("visual", {}).get("typography", {}).get("heading")
+    body_family_json    = brand.get("type", {}).get("body")    or brand.get("visual", {}).get("typography", {}).get("body")
+    # Allow brand.txt overrides if present
+    heading_raw = brand_txt_fonts.get("heading_font", heading_family_json)
+    body_raw    = brand_txt_fonts.get("body_font", body_family_json)
+    cta_raw     = brand_txt_fonts.get("cta_font", heading_raw)
+    heading_family, heading_style = _split_family_and_style(heading_raw)
+    body_family, body_style       = _split_family_and_style(body_raw)
+    _, cta_style                  = _split_family_and_style(cta_raw)
 
     for idx, claim in enumerate(claims):
         try:
             if use_llm:
                 try:
-                    copy = expand_copy(brand, claim, strategy)
-                except Exception:
-                    copy = {
-                        "headline": f"{claim}.",
-                        "byline": f"Built for {strategy.get('audience','')}.",
-                        "cta": "Learn More",
-                    }
+                    copy = expand_copy(brand, claim, strategy, template_requirements)
+                    print(f"[IAG] DEBUG: expand_copy returned: {copy}", flush=True)
+                except Exception as e:
+                    print(f"[IAG] DEBUG: expand_copy failed: {e}", flush=True)
+                    # Fallback that matches template requirements if available
+                    copy = {}
+                    if template_requirements and template_requirements.get("elements"):
+                        for el in template_requirements.get("elements", []):
+                            name = el.get("name") or ""
+                            if not name:
+                                continue
+                            # Provide minimal, safe defaults per required field
+                            # If the field looks like a headline, use claim.
+                            if "head" in name.lower():
+                                copy[name] = f"{claim}."
+                            # If looks like message text
+                            elif "message" in name.lower() or "msg" in name.lower():
+                                copy[name] = claim
+                            # Value prop style
+                            elif "value" in name.lower():
+                                copy[name] = "• " + claim
+                            # CTA-like
+                            elif "cta" in name.lower() or "call" in name.lower():
+                                copy[name] = "Learn More"
+                            else:
+                                copy[name] = claim
+                    else:
+                        # Generic fallback
+                        copy = {
+                            "headline": f"{claim}.",
+                            "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
+                            "cta": "Learn More",
+                        }
             else:
                 copy = {
                     "headline": f"{claim}.",
-                    "byline": f"Built for {strategy.get('audience','')}.",
+                    "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
                     "cta": "Learn More",
                 }
 
+            # If we have template variations, create variants for each variation
+            print(f"[IAG] DEBUG: template_variations count: {len(template_variations) if template_variations else 0}", flush=True)
+            if template_variations and len(template_variations) > 1:
+                print(f"[IAG] DEBUG: Creating variants for {len(template_variations)} variations", flush=True)
+                # Create variants for each template variation (portrait, square, etc.)
+                for variation in template_variations:
+                    print(f"[IAG] DEBUG: Processing variation: {variation.name}", flush=True)
+                    # Create dynamic variant based on template requirements
+                    variant = {
+                        "id": str(uuid.uuid4())[:8],
+                        "layout": f"{tmpl_name}-{variation.name}",
+                        "claim": claim,
+                        "logo_url": brand["logo_url"],
+                        "palette": brand["palette"],
+                        "type": {
+                            "heading": heading_family or brand.get("type", {}).get("heading"),
+                            "body": body_family or brand.get("type", {}).get("body"),
+                            "headingStyle": heading_style or "Regular",
+                            "bodyStyle": body_style or "Regular",
+                            "ctaStyle": cta_style or "Bold",
+                        },
+                        "template_name": template_name,
+                        "template_variation": variation.name,
+                        "aspect_ratio": variation.aspect_ratio,
+                        "dimensions": variation.dimensions
+                    }
+                    
+                    # Add all fields from copy (template-specific)
+                    for key, value in copy.items():
+                        variant[key] = value
+                    
+                    variants.append(variant)
+                    print(f"[IAG] DEBUG: Added variant {variant['id']}", flush=True)
+                
+                print(f"[IAG] Created {len(template_variations)} variants for claim {idx + 1}", flush=True)
+            else:
+                # Standard single variant
+                variant = {
+                    "id": str(uuid.uuid4())[:8],
+                    "layout": tmpl_name,
+                    "claim": claim,
+                    "logo_url": brand["logo_url"],
+                    "palette": brand["palette"],
+                    "type": {
+                        "heading": heading_family or brand.get("type", {}).get("heading"),
+                        "body": body_family or brand.get("type", {}).get("body"),
+                        "headingStyle": heading_style or "Regular",
+                        "bodyStyle": body_style or "Regular",
+                        "ctaStyle": cta_style or "Bold",
+                    },
+                    "template_name": template_name,
+                    "template_variation": template_variation,
+                }
+                
+                # Add all fields from copy (template-specific)
+                for key, value in copy.items():
+                    variant[key] = value
+                
+                variants.append(variant)
 
-
-            variants.append({
-                "id": str(uuid.uuid4())[:8],
-                "layout": tmpl_name,
-                "claim": claim,
-                "headline": copy["headline"],
-                "byline": copy["byline"],
-                "cta": copy["cta"],
-                "logo_url": brand["logo_url"],
-                "palette": brand["palette"],
-                "type": brand["type"],
-            })
         except Exception as e:
             print("[IAG] Variant build error:", e, file=sys.stderr)
             traceback.print_exc()
 
-        if len(variants) >= n: break
+        # Limit total variants if we're generating multiple per claim
+        if template_variations and len(template_variations) > 1:
+            # For templates with variations, we want to limit the total number of claims
+            # to avoid overwhelming output
+            if len(variants) >= n * len(template_variations):
+                break
+        else:
+            # Standard single variant limit
+            if len(variants) >= n:
+                break
 
     print("[IAG] Variants:", len(variants), flush=True)
 
