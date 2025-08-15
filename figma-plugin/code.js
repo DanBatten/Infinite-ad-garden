@@ -444,7 +444,7 @@ async function placeBestImageForVariant(variant, frame, imagePlaceholder, cleanT
       // orientation bonus
       if (desiredOrientation && img.tags.indexOf(desiredOrientation) !== -1) score += 2.0;
       // light penalty if already used in this batch
-      try { if (BATCH_CHOSEN_IMAGES && BATCH_CHOSEN_IMAGES.has(img.id)) score -= 1.5; } catch {}
+      try { if (BATCH_CHOSEN_IMAGES && BATCH_CHOSEN_IMAGES.has(img.id)) score -= 1.5; } catch (e) {}
 
       return { img, score };
     }).sort((a, b) => b.score - a.score);
@@ -476,7 +476,7 @@ async function placeBestImageForVariant(variant, frame, imagePlaceholder, cleanT
     cloned.resize(imagePlaceholder.width, imagePlaceholder.height);
     frame.insertChild(0, cloned);
     imagePlaceholder.visible = false;
-    try { if (BATCH_CHOSEN_IMAGES) BATCH_CHOSEN_IMAGES.add(pick.id); } catch {}
+    try { if (BATCH_CHOSEN_IMAGES) BATCH_CHOSEN_IMAGES.add(pick.id); } catch (e) {}
     console.log(`🖼️ Placed image "${pick.name}" for template ${fullTemplateKey} (topK=${topK}, temp=${temperature.toFixed(2)})`);
     return cloned;
   } catch (err) {
