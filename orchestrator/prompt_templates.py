@@ -32,12 +32,12 @@ Audience: {audience}
 Claim: "{claim}"
 
 Write:
-- headline (40–70 chars, active)
-- byline (80–140 chars, concrete benefit; no medical claims)
-- cta (2–3 words)
+- headline (40–70 chars, active, compelling)
+- value_props (array of 4 short benefit statements, 15-25 chars each, no medical claims)
+- cta (2–3 words, action-oriented)
 
 JSON:
-{{"headline":"…","byline":"…","cta":"…"}}
+{{"headline":"…","value_props":["…","…","…","…"],"cta":"…"}}
 """
 
 VERIFY_SYSTEM = """You are a strict supplement claims reviewer. JSON only."""

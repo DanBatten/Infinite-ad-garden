@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
 
-import json, uuid, sys, traceback
+import json, uuid, sys, traceback, os
 from typing import Dict, Any, List
 
 from orchestrator.storage import save_job
@@ -37,15 +37,22 @@ def main():
     strategy, brand, formulation = cfg["strategy"], cfg["brand"], cfg["formulation"]
     
     # Read parameters from environment variables (set by the API)
-    import os
     claim_count = int(os.environ.get('CLAIM_COUNT', 30))
     claim_style = os.environ.get('CLAIM_STYLE', 'balanced')
+    
+    # New: Read template information
+    template_name = os.environ.get('TEMPLATE_NAME')
+    template_variation = os.environ.get('TEMPLATE_VARIATION')
     
     # Override config values with API parameters
     n = claim_count  # Use the actual requested count instead of hardcoded 30
     per_angle = max(claim_count // 4, 2)  # Distribute claims across angles
     
     print(f"[IAG] Requested: {claim_count} claims, style: {claim_style}", flush=True)
+    if template_name:
+        print(f"[IAG] Template: {template_name}", flush=True)
+        if template_variation:
+            print(f"[IAG] Variation: {template_variation}", flush=True)
     print(f"[IAG] Will generate {per_angle} claims per angle", flush=True)
 
     use_llm = HAS_LLM and (not FORCE_MOCK)
@@ -116,46 +123,118 @@ def main():
 
     # ---- VARIANTS
     variants = []
-    tmpl_name = f"Template/{strategy['format']}"  # e.g. Template/1080x1440
+    
+    # Determine template name for variants
+    if template_name:
+        tmpl_name = template_name
+        print(f"[IAG] Using specified template: {tmpl_name}", flush=True)
+    else:
+        tmpl_name = f"Template/{strategy['format']}"  # e.g. Template/1080x1440
+        print(f"[IAG] Using default template: {tmpl_name}", flush=True)
+
+    # Get template requirements for copy expansion
+    template_requirements = None
+    template_variations = []
+    if template_name:
+        try:
+            from orchestrator.templates import template_manager
+            template_requirements = template_manager.get_claims_requirements(template_name, template_variation)
+            
+            # Get all variations (portrait, square) for the selected version
+            if template_variation:
+                template_variations = template_manager.get_variations_by_version(template_name, template_variation)
+                print(f"[IAG] Template version {template_variation} has {len(template_variations)} variations (portrait/square)", flush=True)
+            else:
+                # If no version specified, get all variations
+                template_variations = template_manager.get_all_variations_for_template(template_name)
+                print(f"[IAG] All template variations loaded: {len(template_variations)} total", flush=True)
+                
+            print(f"[IAG] Template requirements loaded: {len(template_requirements.get('elements', []))} elements", flush=True)
+        except ImportError:
+            print("[IAG] Template manager not available, proceeding without template requirements", flush=True)
 
     for idx, claim in enumerate(claims):
         try:
             if use_llm:
                 try:
-                    copy = expand_copy(brand, claim, strategy)
-                except Exception:
+                    copy = expand_copy(brand, claim, strategy, template_requirements)
+                    print(f"[IAG] DEBUG: expand_copy returned: {copy}", flush=True)
+                except Exception as e:
+                    print(f"[IAG] DEBUG: expand_copy failed: {e}", flush=True)
                     copy = {
                         "headline": f"{claim}.",
-                        "byline": f"Built for {strategy.get('audience','')}.",
+                        "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
                         "cta": "Learn More",
                     }
             else:
                 copy = {
                     "headline": f"{claim}.",
-                    "byline": f"Built for {strategy.get('audience','')}.",
+                    "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
                     "cta": "Learn More",
                 }
 
-            brief = image_brief(brand, claim, strategy)
-            img_url = generate_image_url(brief, variant_id=str(idx))
+            # If we have template variations, create variants for each variation
+            print(f"[IAG] DEBUG: template_variations count: {len(template_variations) if template_variations else 0}", flush=True)
+            if template_variations and len(template_variations) > 1:
+                print(f"[IAG] DEBUG: Creating variants for {len(template_variations)} variations", flush=True)
+                # Create variants for each template variation (portrait, square, etc.)
+                for variation in template_variations:
+                    print(f"[IAG] DEBUG: Processing variation: {variation.name}", flush=True)
+                    # Create dynamic variant based on template requirements
+                    variant = {
+                        "id": str(uuid.uuid4())[:8],
+                        "layout": f"{tmpl_name}-{variation.name}",
+                        "claim": claim,
+                        "logo_url": brand["logo_url"],
+                        "palette": brand["palette"],
+                        "type": brand["type"],
+                        "template_name": template_name,
+                        "template_variation": variation.name,
+                        "aspect_ratio": variation.aspect_ratio,
+                        "dimensions": variation.dimensions
+                    }
+                    
+                    # Add all fields from copy (template-specific)
+                    for key, value in copy.items():
+                        variant[key] = value
+                    
+                    variants.append(variant)
+                    print(f"[IAG] DEBUG: Added variant {variant['id']}", flush=True)
+                
+                print(f"[IAG] Created {len(template_variations)} variants for claim {idx + 1}", flush=True)
+            else:
+                # Standard single variant
+                variant = {
+                    "id": str(uuid.uuid4())[:8],
+                    "layout": tmpl_name,
+                    "claim": claim,
+                    "logo_url": brand["logo_url"],
+                    "palette": brand["palette"],
+                    "type": brand["type"],
+                    "template_name": template_name,
+                    "template_variation": template_variation,
+                }
+                
+                # Add all fields from copy (template-specific)
+                for key, value in copy.items():
+                    variant[key] = value
+                
+                variants.append(variant)
 
-            variants.append({
-                "id": str(uuid.uuid4())[:8],
-                "layout": tmpl_name,
-                "claim": claim,
-                "headline": copy["headline"],
-                "byline": copy["byline"],
-                "cta": copy["cta"],
-                "image_url": img_url,
-                "logo_url": brand["logo_url"],
-                "palette": brand["palette"],
-                "type": brand["type"],
-            })
         except Exception as e:
             print("[IAG] Variant build error:", e, file=sys.stderr)
             traceback.print_exc()
 
-        if len(variants) >= n: break
+        # Limit total variants if we're generating multiple per claim
+        if template_variations and len(template_variations) > 1:
+            # For templates with variations, we want to limit the total number of claims
+            # to avoid overwhelming output
+            if len(variants) >= n * len(template_variations):
+                break
+        else:
+            # Standard single variant limit
+            if len(variants) >= n:
+                break
 
     print("[IAG] Variants:", len(variants), flush=True)
 

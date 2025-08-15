@@ -97,20 +97,75 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
 
     return angle_claims
 
-def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any]) -> Dict[str, str]:
+def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any], 
+                template_requirements: Dict[str, Any] = None) -> Dict[str, str]:
     """
-    Returns {"headline","byline","cta"}; fills defaults if model omits keys.
+    Returns dynamic structure based on template requirements.
+    Completely template-driven - no hardcoded fields.
     """
-    user = EXPAND_USER.format(
-        tone=brand.get("tone", ""),
-        audience=strategy.get("audience", ""),
-        claim=claim,
-    )
-    out = llm_json(EXPAND_SYSTEM, user) or {}
-    headline = (out.get("headline") or "").strip() or claim
-    byline   = (out.get("byline") or "").strip() or "Inside-out support for hydrated, healthy-looking skin."
-    cta      = (out.get("cta") or "").strip() or "Learn More"
-    return {"headline": headline, "byline": byline, "cta": cta}
+    # Build dynamic prompt based on template requirements
+    if template_requirements and template_requirements.get('elements'):
+        # Template-specific generation
+        elements = template_requirements.get('elements', [])
+        element_info = []
+        required_fields = []
+        
+        for element in elements:
+            name = element.get('name', '')
+            max_chars = element.get('max_chars', 100)
+            element_info.append(f"- {name}: max {max_chars} characters")
+            required_fields.append(name)
+        
+        # Get template prompt guidance if available
+        template_guidance = ""
+        if hasattr(template_requirements, 'metadata') and template_requirements.metadata:
+            template_guidance = template_requirements.metadata.get('prompt_guidance', '')
+        elif isinstance(template_requirements, dict) and template_requirements.get('metadata'):
+            template_guidance = template_requirements['metadata'].get('prompt_guidance', '')
+        
+        user = f"""Tone: {brand.get("tone", "")}
+Audience: {strategy.get("audience", "")}
+Claim: "{claim}"
+
+TEMPLATE REQUIREMENTS:
+{chr(10).join(element_info)}
+
+TEMPLATE GUIDANCE:
+{template_guidance if template_guidance else "Generate engaging, brand-appropriate content for each text element."}
+
+Generate ONLY the text elements specified above. Each element should respect the character limits and follow the template guidance.
+Return JSON with exactly these fields: {chr(10).join(f'"{field}": "..."' for field in required_fields)}
+
+JSON:"""
+        
+        out = llm_json(EXPAND_SYSTEM, user) or {}
+        
+        # Return only the fields that the template requires
+        result = {}
+        for field in required_fields:
+            result[field] = (out.get(field) or "").strip() or f"Default {field}"
+        
+        return result
+    else:
+        # Fallback to default structure if no template requirements
+        user = EXPAND_USER.format(
+            tone=brand.get("tone", ""),
+            audience=strategy.get("audience", ""),
+            claim=claim,
+        )
+        
+        out = llm_json(EXPAND_SYSTEM, user) or {}
+        headline = (out.get("headline") or "").strip() or claim
+        value_props = out.get("value_props", [])
+        if not value_props or len(value_props) < 4:
+            value_props = [
+                "Natural ingredients",
+                "Clinically formulated", 
+                "Proven results",
+                "Safe & effective"
+            ]
+        cta = (out.get("cta") or "").strip() or "Learn More"
+        return {"headline": headline, "value_props": value_props, "cta": cta}
 
 def verify_or_rewrite(claim: str, formulation: Dict[str, Any], banned: List[str]) -> Dict[str, Any]:
     """

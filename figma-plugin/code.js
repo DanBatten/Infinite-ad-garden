@@ -707,13 +707,18 @@ function findTemplate(name) {
 
 // ---------------- Build variant ----------------
 async function buildVariant(template, v) {
+  console.log(`🔧 Building variant for:`, v);
   const frame = template.clone();
   frame.name = `Ad/${v.id}`;
-
-  const h1   = frame.findOne(n => n.type === "TEXT" && n.name === "#H1");
-  const by   = frame.findOne(n => n.type === "TEXT" && n.name === "#BYLINE");
-  const cta  = frame.findOne(n => n.type === "TEXT" && n.name === "#CTA");
-  const hero = frame.findOne(n => n.type === "RECTANGLE" && n.name === "#IMAGE_HERO");
+  
+  // Debug: Show all text elements in the template
+  const allTextNodes = frame.findAll(n => n.type === "TEXT");
+  console.log(`🔍 Template contains ${allTextNodes.length} text elements:`, allTextNodes.map(n => n.name));
+  console.log(`🔍 Text node names:`, allTextNodes.map(n => n.name));
+  
+  // Debug: Show all rectangles (potential image placeholders)
+  const allRectangles = frame.findAll(n => n.type === "RECTANGLE");
+  console.log(`🔍 Template contains ${allRectangles.length} rectangles:`, allRectangles.map(n => n.name));
 
   // Brand fonts from job JSON (with optional styles)
   const headingFamily = (v && v.type && v.type.heading) || null;
@@ -722,70 +727,167 @@ async function buildVariant(template, v) {
   const bodyStyle     = (v && v.type && v.type.bodyStyle)    || "Regular";
   const ctaStyle      = (v && v.type && v.type.ctaStyle)     || "Bold";
 
-  await setText(h1,  v.headline, headingFamily, headingStyle);
-  await setText(by,  v.byline,   bodyFamily,    bodyStyle);
-  await setText(cta, v.cta,      headingFamily, ctaStyle);
-
-  // Try to place best matching tagged image, fallback to URL if no match
-  try {
-    const bestImage = await placeBestImageForHeadline(v.headline, frame);
-    if (bestImage) {
-      // Position the image over the hero rectangle
-      bestImage.x = hero.x;
-      bestImage.y = hero.y;
-      bestImage.resize(hero.width, hero.height);
+  // Dynamically find and populate all text elements based on what exists in the template
+  // This makes the system completely flexible to any template structure
+  
+  // Get all available text fields from the variant data
+  const textFields = Object.entries(v).filter(([key, value]) => 
+    typeof value === 'string' && value.trim() && 
+    !['id', 'layout', 'template_name', 'template_variation', 'logo_url', 'palette'].includes(key)
+  );
+  
+  console.log(`🔍 Available text fields in variant:`, textFields.map(([key, value]) => `${key}: "${value}"`));
+  
+  // For each text field, try to find a matching text node in the template
+  for (const [fieldName, fieldValue] of textFields) {
+    let textNode = null;
+    
+    // Try to find text nodes that match the field name
+    if (fieldName === 'headline') {
+      textNode = frame.findOne(n => n.type === "TEXT" && (
+        n.name.includes("HEADLINE") || n.name.includes("H1") || n.name.includes("TITLE")
+      ));
+    } else if (fieldName === 'cta') {
+      textNode = frame.findOne(n => n.type === "TEXT" && (
+        n.name.includes("CTA") || n.name.includes("CALL") || n.name.includes("ACTION")
+      ));
+    } else if (fieldName === 'value_props' && Array.isArray(fieldValue)) {
+      // Handle value_props as an array - look for numbered value prop nodes
+      const valuePropNodes = frame.findAll(n => n.type === "TEXT" && n.name.includes("VALUE_PROP"));
+      console.log(`🔍 Found ${valuePropNodes.length} value prop nodes:`, valuePropNodes.map(n => n.name));
       
-      // Move the image to the bottom of the layer stack (behind text)
-      frame.insertChild(0, bestImage);
+      // Sort them to ensure consistent ordering
+      valuePropNodes.sort((a, b) => a.name.localeCompare(b.name));
       
-      // Hide the original hero rectangle since we're using a tagged image
-      hero.visible = false;
-      
-      console.log(`🖼️ Successfully placed tagged image for headline: "${v.headline}"`);
+      // Populate each value prop node with corresponding data
+      for (let i = 0; i < Math.min(valuePropNodes.length, fieldValue.length); i++) {
+        if (fieldValue[i]) {
+          await setText(valuePropNodes[i], fieldValue[i], bodyFamily, bodyStyle);
+          console.log(`✅ Set ${valuePropNodes[i].name}: "${fieldValue[i]}"`);
+        }
+      }
+      continue; // Skip the regular text setting for arrays
     } else {
-      // Smart fallback: try to find any product image if no good match
-      const fallbackImage = await findFallbackProductImage();
-      if (fallbackImage) {
-        // Place the fallback product image
-        const clonedImage = fallbackImage.node.clone();
-        clonedImage.x = hero.x;
-        clonedImage.y = hero.y;
-        clonedImage.resize(hero.width, hero.height);
+      // For any other field, try multiple matching strategies
+      textNode = frame.findOne(n => n.type === "TEXT" && (
+        // Strategy 1: Exact name match
+        n.name === fieldName ||
+        // Strategy 2: Name contains field name
+        n.name.toLowerCase().includes(fieldName.toLowerCase()) ||
+        // Strategy 3: Map generated field names to Figma text layer names
+        (fieldName === 'message_01' && (n.name === '#MESSAGE1' || n.name.includes('MESSAGE1') || n.name.includes('MSG1') || n.name.includes('TEXT1'))) ||
+        (fieldName === 'message_02' && (n.name === '#MESSAGE2' || n.name.includes('MESSAGE2') || n.name.includes('MSG2') || n.name.includes('TEXT2'))) ||
+        (fieldName === 'headline' && (n.name === '#HEADLINE' || n.name.includes('HEADLINE') || n.name.includes('H1') || n.name.includes('TITLE'))) ||
+        // Strategy 4: Look for common text layer naming patterns
+        n.name.includes('#') && n.name.toLowerCase().includes(fieldName.toLowerCase())
+      ));
+      
+      if (!textNode) {
+        console.log(`🔍 No exact match for ${fieldName}, trying broader search...`);
+        // Last resort: look for any text node that might be related
+        const potentialMatches = frame.findAll(n => n.type === "TEXT" && 
+          (n.name.includes('#') || n.name.includes('TEXT') || n.name.includes('LABEL')));
+        console.log(`🔍 Potential text nodes for ${fieldName}:`, potentialMatches.map(n => n.name));
+      }
+    }
+    
+    // Set the text if we found a matching node
+    if (textNode) {
+      const fontFamily = fieldName === 'headline' ? headingFamily : bodyFamily;
+      const fontStyle = fieldName === 'headline' ? headingStyle : bodyStyle;
+      
+      await setText(textNode, fieldValue, fontFamily, fontStyle);
+      console.log(`✅ Set ${fieldName}: "${fieldValue}"`);
+    } else {
+      console.log(`⚠️ No text node found for field: ${fieldName}`);
+    }
+  }
+
+  // Dynamically find image placeholder (could be #IMAGE, #IMAGE_HERO, #HERO, etc.)
+  const imagePlaceholder = frame.findOne(n => n.type === "RECTANGLE" && (
+    n.name.includes("IMAGE") || 
+    n.name.includes("HERO") || 
+    n.name.includes("PHOTO")
+  ));
+  
+  if (imagePlaceholder) {
+    console.log(`🔍 Found image placeholder: ${imagePlaceholder.name}`);
+    
+    // Try to place best matching tagged image, fallback to URL if no match
+    try {
+      const bestImage = await placeBestImageForHeadline(v.headline, frame);
+      if (bestImage) {
+        // Position the image over the image placeholder
+        bestImage.x = imagePlaceholder.x;
+        bestImage.y = imagePlaceholder.y;
+        bestImage.resize(imagePlaceholder.width, imagePlaceholder.height);
         
         // Move the image to the bottom of the layer stack (behind text)
-        frame.insertChild(0, clonedImage);
+        frame.insertChild(0, bestImage);
         
-        // Hide the original hero rectangle
-        hero.visible = false;
+        // Hide the original image placeholder since we're using a tagged image
+        imagePlaceholder.visible = false;
         
-        console.log(`🖼️ Using fallback product image for headline: "${v.headline}"`);
+        console.log(`🖼️ Successfully placed tagged image for headline: "${v.headline}"`);
       } else {
-        // Last resort: use URL-based image
-        await placeImageFill(hero, v.image_url);
-        console.log(`🖼️ Using URL image as last resort for headline: "${v.headline}"`);
+        // Smart fallback: try to find any product image if no good match
+        const fallbackImage = await findFallbackProductImage();
+        if (fallbackImage) {
+          // Place the fallback product image
+          const clonedImage = fallbackImage.node.clone();
+          clonedImage.x = imagePlaceholder.x;
+          clonedImage.y = imagePlaceholder.y;
+          clonedImage.resize(imagePlaceholder.width, imagePlaceholder.height);
+          
+          // Move the image to the bottom of the layer stack (behind text)
+          frame.insertChild(0, clonedImage);
+          
+          // Hide the original image placeholder
+          imagePlaceholder.visible = false;
+          
+          console.log(`🖼️ Using fallback product image for headline: "${v.headline}"`);
+        } else {
+          // Last resort: use URL-based image if available, otherwise skip
+          if (v.image_url) {
+            await placeImageFill(imagePlaceholder, v.image_url);
+            console.log(`🖼️ Using URL image as last resort for headline: "${v.headline}"`);
+          } else {
+            console.log(`⚠️ No image URL available for headline: "${v.headline}", skipping image placement`);
+          }
+        }
+      }
+    } catch (error) {
+      console.log(`⚠️ Image placement failed, using fallback: ${error.message}`);
+      // Try fallback product image first
+      try {
+        const fallbackImage = await findFallbackProductImage();
+        if (fallbackImage) {
+          const clonedImage = fallbackImage.node.clone();
+          clonedImage.x = imagePlaceholder.x;
+          clonedImage.y = imagePlaceholder.y;
+          clonedImage.resize(imagePlaceholder.width, imagePlaceholder.height);
+          frame.insertChild(0, clonedImage);
+          imagePlaceholder.visible = false;
+          console.log(`🖼️ Using fallback product image after error for headline: "${v.headline}"`);
+        } else {
+          if (v.image_url) {
+            await placeImageFill(imagePlaceholder, v.image_url);
+            console.log(`🖼️ Using URL image after error for headline: "${v.headline}"`);
+          } else {
+            console.log(`⚠️ No image URL available for headline: "${v.headline}", skipping image placement`);
+          }
+        }
+      } catch (fallbackError) {
+        if (v.image_url) {
+          await placeImageFill(imagePlaceholder, v.image_url);
+          console.log(`🖼️ Using URL image as final fallback for headline: "${v.headline}"`);
+        } else {
+          console.log(`⚠️ No image URL available for headline: "${v.headline}", skipping image placement`);
+        }
       }
     }
-  } catch (error) {
-    console.log(`⚠️ Image placement failed, using fallback: ${error.message}`);
-    // Try fallback product image first
-    try {
-      const fallbackImage = await findFallbackProductImage();
-      if (fallbackImage) {
-        const clonedImage = fallbackImage.node.clone();
-        clonedImage.x = hero.x;
-        clonedImage.y = hero.y;
-        clonedImage.resize(hero.width, hero.height);
-        frame.insertChild(0, clonedImage);
-        hero.visible = false;
-        console.log(`🖼️ Using fallback product image after error for headline: "${v.headline}"`);
-      } else {
-        await placeImageFill(hero, v.image_url);
-        console.log(`🖼️ Using URL image after error for headline: "${v.headline}"`);
-      }
-    } catch (fallbackError) {
-      await placeImageFill(hero, v.image_url);
-      console.log(`🖼️ Using URL image as final fallback for headline: "${v.headline}"`);
-    }
+  } else {
+    console.log(`⚠️ No image placeholder found in template, skipping image placement`);
   }
 
   return frame;
@@ -812,7 +914,8 @@ figma.ui.onmessage = async (msg) => {
 
   const jobId = (msg.jobId || "").trim();
   const mode  = msg.mode || "batch";
-  const templateName = msg.template || `Template/${job.format}`;
+  const templateVersion = msg.templateVersion || "";
+  const variations = msg.variations || ["portrait", "square"];
   
 
   try {
@@ -825,16 +928,122 @@ figma.ui.onmessage = async (msg) => {
     
     console.log(`[Plugin] Job loaded:`, job);
     console.log(`[Plugin] Job format: ${job.format}, variants: ${(job.variants && job.variants.length) || 0}`);
+    console.log(`[Plugin] Template version: ${templateVersion}, variations: ${variations.join(', ')}`);
 
-    // Match your strategy.format; your main.py sets layout = `Template/${format}`
-    const templateName = msg.template || `Template/${job.format}`;
-    console.log(`[Plugin] Looking for template: ${templateName}`);
+    // Filter variants based on selected variations
+    let filteredVariants = job.variants;
+    if (templateVersion && variations.length > 0) {
+      filteredVariants = job.variants.filter(variant => {
+        if (variant.template_variation) {
+          const variantType = variant.template_variation.split('-')[1]; // Extract "portrait" or "square"
+          return variations.includes(variantType);
+        }
+        return true; // Include if no template variation specified
+      });
+      console.log(`[Plugin] Filtered variants: ${filteredVariants.length} of ${job.variants.length} based on selected variations`);
+    }
+
+    // Use the first variant's template name as the base template
+    // This should come from the claims generation, not be constructed from job format
+    const baseTemplateName = (filteredVariants[0] && filteredVariants[0].template_name);
+    if (!baseTemplateName) {
+      throw new Error(`No template name found in variants. Please ensure claims were generated with a template.`);
+    }
+    console.log(`[Plugin] Base template name: ${baseTemplateName}`);
     
-    const template = findTemplate(templateName);
+    // Extract the base name without "Template-" prefix for searching
+    const cleanTemplateName = baseTemplateName.replace(/^Template-/, '');
+    console.log(`[Plugin] Clean template name: ${cleanTemplateName}`);
+    
+    // Debug: Show what we're actually looking for
+    console.log(`[Plugin] Job format: ${job.format}`);
+    console.log(`[Plugin] First variant template_name: ${filteredVariants[0] && filteredVariants[0].template_name}`);
+    console.log(`[Plugin] All variant template names:`, filteredVariants.map(v => v.template_name));
+    
+    // First try to find template on the _Template_Library page
+    let template = null;
+    let templatePage = null;
+    
+    // Look for _Template_Library page
+    for (const page of figma.root.children) {
+      if (page.name === "_Template_Library") {
+        templatePage = page;
+        break;
+      }
+    }
+    
+    // Debug: Show what templates are available in the Figma file
+    if (templatePage) {
+      const availableTemplates = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        (node.name.startsWith("Template-") || node.name.startsWith("Design-") || node.name.startsWith("Guide-"))
+      );
+      console.log(`[Plugin] Available templates on _Template_Library page:`, availableTemplates.map(t => t.name));
+    }
+    
+    // Also check current page for available templates
+    const currentPageTemplates = figma.currentPage.findAll(node => 
+      node.type === "FRAME" && 
+      (node.name.startsWith("Template-") || node.name.startsWith("Design-") || node.name.startsWith("Guide-"))
+    );
+    console.log(`[Plugin] Available templates on current page:`, currentPageTemplates.map(t => t.name));
+    
+    // Try multiple template name patterns for Design frames first, then Guide frames as fallback
+    const templateNamePatterns = [
+      // Design frames (preferred for ad generation)
+      `Design-${cleanTemplateName}-${templateVersion || '01'}-${variations[0] || 'portrait'}`, // Full Design frame name
+      `Design-${cleanTemplateName}-${templateVersion || '01'}-${variations[1] || 'square'}`, // Alternative variation
+      `Design-${cleanTemplateName}-${templateVersion || '01'}`, // Design frame with version only
+      `Design-${cleanTemplateName}-portrait`, // Design frame with portrait
+      `Design-${cleanTemplateName}-square`, // Design frame with square
+      // Guide frames (fallback if Design frames not found)
+      `Guide-${cleanTemplateName}-${templateVersion || '01'}`, // Guide frame with version
+      `Guide-${cleanTemplateName}`, // Guide frame without version
+      // Also try the original template name as a fallback
+      baseTemplateName
+    ];
+    
+    console.log(`[Plugin] Trying template name patterns:`, templateNamePatterns);
+    console.log(`[Plugin] Looking for template: ${baseTemplateName}`);
+    console.log(`[Plugin] Clean template name: ${cleanTemplateName}`);
+    console.log(`[Plugin] Template version: ${templateVersion}`);
+    console.log(`[Plugin] Variations:`, variations);
+    
+    if (templatePage) {
+      console.log(`[Plugin] Looking for template on _Template_Library page`);
+      
+      // Debug: Show all available frame names on the template page
+      const allFrames = templatePage.findAll(node => node.type === "FRAME");
+      console.log(`[Plugin] Available frames on _Template_Library page:`, allFrames.map(f => f.name));
+      
+      for (const pattern of templateNamePatterns) {
+        template = templatePage.findOne(node => 
+          node.type === "FRAME" && 
+          node.name === pattern
+        );
+        if (template) {
+          console.log(`[Plugin] Found template with pattern: ${pattern}`);
+          break;
+        }
+      }
+    }
+    
+    // If not found on template page, try current page as fallback
+    if (!template) {
+      console.log(`[Plugin] Template not found on _Template_Library page, trying current page`);
+      for (const pattern of templateNamePatterns) {
+        template = findTemplate(pattern);
+        if (template) {
+          console.log(`[Plugin] Found template on current page with pattern: ${pattern}`);
+          break;
+        }
+      }
+    }
+    
     console.log(`[Plugin] Template found:`, template);
     
     if (!template) {
-      throw new Error(`Template frame '${templateName}' not found. Please ensure you have a frame named '${templateName}' in your Figma file.`);
+      throw new Error(`Template frame not found. Tried patterns: ${templateNamePatterns.join(', ')}. Please ensure you have a frame with one of these names in the _Template_Library page or current page.`);
     }
     
     const cellW = template.width;
@@ -843,12 +1052,12 @@ figma.ui.onmessage = async (msg) => {
     let i = 0;
 
     if (mode === "batch") {
-      const rows = Math.ceil(job.variants.length / 5); // Default to 5 columns
+      const rows = Math.ceil(filteredVariants.length / 5); // Default to 5 columns
       const pad  = 120; // Default gap of 120px
       sessionRunCounter++; // Increment counter for unique frame names
       const batch = ensureBatchFrame(`${job.job_id || jobId}_run${sessionRunCounter}`, template, 5, rows, 120, pad);
 
-      for (const v of job.variants) {
+      for (const v of filteredVariants) {
         const frame = await buildVariant(template, v);
         batch.appendChild(frame);
         positionFrameInGrid(frame, cellW, cellH, i, 5, 120, pad);
@@ -860,13 +1069,13 @@ figma.ui.onmessage = async (msg) => {
     } else {
       const startIndex = existingVariantCount("Ad/");
       sessionRunCounter++; // Increment counter for unique frame names
-      for (const v of job.variants) {
+      for (const v of filteredVariants) {
         const frame = await buildVariant(template, v);
         frame.x = template.x;
         frame.y = template.y + template.height + 120;
         // Add run counter to frame name to avoid conflicts
         frame.name = `${frame.name}_run${sessionRunCounter}`;
-        positionFrameInGrid(frame, cellW, cellH, startIndex + i, 5, 120, 120);
+        positionFrameInBox(frame, cellW, cellH, startIndex + i, 5, 120, 120);
         i++;
       }
       figma.notify(`Infinite Ad Garden: built ${i} variants (continued grid, run ${sessionRunCounter})`);
@@ -895,6 +1104,142 @@ figma.ui.onmessage = async (msg) => {
     });
   }
   
+  } else if (msg.type === "scan-templates") {
+    // Scan templates from Figma file
+    try {
+      console.log(`🔍 Scanning for templates in Figma file...`);
+      
+      // First, try to find the _Template_Library page
+      let templatePage = null;
+      for (const page of figma.root.children) {
+        if (page.name === "_Template_Library") {
+          templatePage = page;
+          break;
+        }
+      }
+      
+      if (!templatePage) {
+        // Fallback to current page if _Template_Library not found
+        templatePage = figma.currentPage;
+        console.log(`[Plugin] _Template_Library page not found, using current page`);
+      } else {
+        console.log(`[Plugin] Found _Template_Library page: ${templatePage.name}`);
+      }
+      
+      // Look for template frames on the template page
+      // Only show Template containers in the dropdown (parent containers)
+      // Design frames and Guide frames are found automatically when generating ads
+      const templateFrames = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        node.name && 
+        node.name.startsWith("Template-")
+      );
+      
+      // Also find all Design and Guide frames for version dropdown population
+      const allFrames = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        node.name && 
+        (node.name.startsWith("Template-") || node.name.startsWith("Design-") || node.name.startsWith("Guide-"))
+      );
+      
+      // Scan Guide frames to extract JSON template requirements
+      const guideFrames = templatePage.findAll(node => 
+        node.type === "FRAME" && 
+        node.name && 
+        node.name.startsWith("Guide-")
+      );
+      
+      console.log(`[Plugin] Found ${guideFrames.length} guide frames for template requirements`);
+      console.log(`[Plugin] Guide frame names:`, guideFrames.map(f => f.name));
+      
+      // Extract template requirements from Guide frames
+      const templateRequirements = {};
+      for (const guideFrame of guideFrames) {
+        try {
+          // Find the #GUIDE text layer within the guide frame
+          const guideTextNode = guideFrame.findOne(node => 
+            node.type === "TEXT" && 
+            node.name === "#GUIDE"
+          );
+          
+          console.log(`[Plugin] Searching for #GUIDE text in ${guideFrame.name}...`);
+          console.log(`[Plugin] All text nodes in ${guideFrame.name}:`, guideFrame.findAll(node => node.type === "TEXT").map(t => t.name));
+          
+                      if (guideTextNode && guideTextNode.characters) {
+              console.log(`[Plugin] Found #GUIDE text in ${guideFrame.name}:`, guideTextNode.characters.substring(0, 100) + "...");
+              
+              // Try to parse the JSON content
+              try {
+                const guideData = JSON.parse(guideTextNode.characters);
+                const templateName = guideData.template_name;
+                
+                if (templateName) {
+                  // Map the template name to the actual Template frame name
+                  const actualTemplateName = `Template-${templateName}`;
+                  templateRequirements[actualTemplateName] = guideData;
+                  console.log(`[Plugin] Successfully parsed guide for ${templateName}, mapped to ${actualTemplateName}:`, guideData);
+                }
+              } catch (parseError) {
+                console.log(`[Plugin] Failed to parse JSON in ${guideFrame.name}:`, parseError.message);
+              }
+            }
+        } catch (error) {
+          console.log(`[Plugin] Error processing guide frame ${guideFrame.name}:`, error.message);
+        }
+      }
+      
+      console.log(`[Plugin] Found ${templateFrames.length} template containers on ${templatePage.name}:`, templateFrames.map(f => f.name));
+      console.log(`[Plugin] Found ${allFrames.length} total frames (including Design and Guide frames)`);
+      
+      // Log each template found for debugging
+      templateFrames.forEach((frame, index) => {
+        console.log(`[Plugin] Template ${index + 1}: "${frame.name}" (${frame.width}x${frame.height})`);
+      });
+      
+      // Send the found templates to the UI to update the cache
+      console.log(`[Plugin] Sending template requirements to UI:`, templateRequirements);
+      console.log(`[Plugin] Template requirements keys:`, Object.keys(templateRequirements));
+      console.log(`[Plugin] Template frame names:`, templateFrames.map(f => f.name));
+      console.log(`[Plugin] Template requirements mapping:`, Object.entries(templateRequirements).map(([key, value]) => `${key} -> ${value.template_name}`));
+      
+      figma.ui.postMessage({
+        type: 'templates-scanned',
+        templates: templateFrames.map(f => ({
+          name: f.name,
+          type: f.type,
+          width: f.width,
+          height: f.height
+        })),
+        allFrames: allFrames.map(f => ({
+          name: f.name,
+          type: f.type,
+          width: f.width,
+          height: f.height
+        })),
+        templateRequirements: templateRequirements
+      });
+      
+      figma.notify(`Found ${templateFrames.length} template frames on ${templatePage.name}`);
+      
+      // Send success status to UI
+      figma.ui.postMessage({
+        type: 'status',
+        message: `Template scanning completed: Found ${templateFrames.length} templates on ${templatePage.name}`,
+        status: 'success'
+      });
+      
+    } catch (error) {
+      console.error('Error scanning templates:', error);
+      figma.notify(`Error scanning templates: ${error.message}`);
+      
+      // Send error status to UI
+      figma.ui.postMessage({
+        type: 'status',
+        message: `Error scanning templates: ${error.message}`,
+        status: 'error'
+      });
+    }
+    
   } else if (msg.type === "generate-claims") {
     // Generate claims using the existing system
     try {
@@ -915,7 +1260,8 @@ figma.ui.onmessage = async (msg) => {
         body: JSON.stringify({
           brandFile: msg.brandFile,
           claimCount: msg.claimCount,
-          claimStyle: msg.claimStyle
+          claimStyle: msg.claimStyle,
+          templateName: msg.templateName
         })
       })
       .then(response => response.json())
