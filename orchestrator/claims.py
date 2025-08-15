@@ -1,6 +1,7 @@
 # orchestrator/claims.py
 from typing import Dict, Any, List
 from .llm import llm_json
+from .knowledge import load_knowledge_texts
 from .prompt_templates import (
     CLAIMS_SYSTEM,
     CLAIMS_USER,
@@ -66,6 +67,11 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         style=style,
     )
 
+    # Lightweight RAG: attach concise brand/global knowledge as a prefix note
+    brand_name = brand.get("name", "")
+    kb = load_knowledge_texts(brand_name, max_chars=12000)
+    if kb:
+        user = f"""[REFERENCE DOCS]\n{kb}\n\n[INSTRUCTION]\n{user}"""
     out = llm_json(CLAIMS_SYSTEM, user) or {}
     seen: set = set()
     all_claims: List[Dict[str, str]] = []
@@ -123,7 +129,11 @@ def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any],
         elif isinstance(template_requirements, dict) and template_requirements.get('metadata'):
             template_guidance = template_requirements['metadata'].get('prompt_guidance', '')
         
-        user = f"""Tone: {brand.get("tone", "")}
+        # Include knowledge
+        kb = load_knowledge_texts(brand.get("name",""), max_chars=8000)
+        prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
+
+        user = f"""{prefix}Tone: {brand.get("tone", "")}
 Audience: {strategy.get("audience", "")}
 Claim: "{claim}"
 
@@ -148,7 +158,11 @@ JSON:"""
         return result
     else:
         # Fallback to default structure if no template requirements
-        user = EXPAND_USER.format(
+        # Include knowledge
+        kb = load_knowledge_texts(brand.get("name",""), max_chars=8000)
+        prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
+
+        user = prefix + EXPAND_USER.format(
             tone=brand.get("tone", ""),
             audience=strategy.get("audience", ""),
             claim=claim,
