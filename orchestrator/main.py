@@ -161,11 +161,35 @@ def main():
                     print(f"[IAG] DEBUG: expand_copy returned: {copy}", flush=True)
                 except Exception as e:
                     print(f"[IAG] DEBUG: expand_copy failed: {e}", flush=True)
-                    copy = {
-                        "headline": f"{claim}.",
-                        "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
-                        "cta": "Learn More",
-                    }
+                    # Fallback that matches template requirements if available
+                    copy = {}
+                    if template_requirements and template_requirements.get("elements"):
+                        for el in template_requirements.get("elements", []):
+                            name = el.get("name") or ""
+                            if not name:
+                                continue
+                            # Provide minimal, safe defaults per required field
+                            # If the field looks like a headline, use claim.
+                            if "head" in name.lower():
+                                copy[name] = f"{claim}."
+                            # If looks like message text
+                            elif "message" in name.lower() or "msg" in name.lower():
+                                copy[name] = claim
+                            # Value prop style
+                            elif "value" in name.lower():
+                                copy[name] = "• " + claim
+                            # CTA-like
+                            elif "cta" in name.lower() or "call" in name.lower():
+                                copy[name] = "Learn More"
+                            else:
+                                copy[name] = claim
+                    else:
+                        # Generic fallback
+                        copy = {
+                            "headline": f"{claim}.",
+                            "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
+                            "cta": "Learn More",
+                        }
             else:
                 copy = {
                     "headline": f"{claim}.",

@@ -129,8 +129,8 @@ def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any],
         elif isinstance(template_requirements, dict) and template_requirements.get('metadata'):
             template_guidance = template_requirements['metadata'].get('prompt_guidance', '')
         
-        # Include knowledge
-        kb = load_knowledge_texts(brand.get("name",""), max_chars=8000)
+        # Include knowledge (tighter cap to avoid request/tooling errors)
+        kb = load_knowledge_texts(brand.get("name",""), max_chars=4000)
         prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
 
         user = f"""{prefix}Tone: {brand.get("tone", "")}
@@ -159,7 +159,7 @@ JSON:"""
     else:
         # Fallback to default structure if no template requirements
         # Include knowledge
-        kb = load_knowledge_texts(brand.get("name",""), max_chars=8000)
+        kb = load_knowledge_texts(brand.get("name",""), max_chars=4000)
         prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
 
         user = prefix + EXPAND_USER.format(
