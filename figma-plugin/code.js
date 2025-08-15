@@ -1209,7 +1209,7 @@ figma.ui.onmessage = async (msg) => {
       const batchName = `Batch/${brandName}-${cleanTemplateName}-v${version}-${varLabel}-${job.job_id || jobId}_run${sessionRunCounter}`;
 
       // Reset per-batch chosen images set to encourage diversity within this batch
-      try { BATCH_CHOSEN_IMAGES = new Set(); } catch {}
+      try { BATCH_CHOSEN_IMAGES = new Set(); } catch (e) {}
       const batch = ensureBatchFrame(batchName, template, 5, rows, 120, pad);
 
       for (const v of filteredVariants) {
