@@ -34,10 +34,14 @@ def _split_family_and_style(raw: str):
             # Normalize style spacing (e.g., 'Semi Bold' -> 'SemiBold')
             normalized_style = style.replace(" ", "") if style in ["Semi Bold", "Demi Bold", "Extra Bold", "Extra Black"] else style
             return (family or value, normalized_style)
-    # Fallback: last token as style if short
+    # Fallback: only treat last token as style if it's a known style token
     parts = value.split()
     if len(parts) > 1:
-        return (" ".join(parts[:-1]).strip(), parts[-1])
+        last_token = parts[-1]
+        if last_token.lower() in [s.lower() for s in known_styles]:
+            return (" ".join(parts[:-1]).strip(), last_token)
+        # Otherwise, the entire value is the family; default style Regular
+        return (value, "Regular")
     return (value, "Regular")
 
 def _load_brand_txt_fonts(brand_folder: Path) -> Dict[str, str]:
