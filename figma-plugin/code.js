@@ -1180,7 +1180,13 @@ figma.ui.onmessage = async (msg) => {
       const rows = Math.ceil(filteredVariants.length / 5); // Default to 5 columns
       const pad  = 120; // Default gap of 120px
       sessionRunCounter++; // Increment counter for unique frame names
-      const batch = ensureBatchFrame(`${job.job_id || jobId}_run${sessionRunCounter}`, template, 5, rows, 120, pad);
+      // Build a descriptive batch frame name from user selections and job metadata
+      const brandName = (job && job.brand) ? String(job.brand).trim() : "Brand";
+      const version = (templateVersion || '01');
+      const varLabel = (Array.isArray(variations) && variations.length > 0) ? variations.join('+') : 'all';
+      const batchName = `Batch/${brandName}-${cleanTemplateName}-v${version}-${varLabel}-${job.job_id || jobId}_run${sessionRunCounter}`;
+
+      const batch = ensureBatchFrame(batchName, template, 5, rows, 120, pad);
 
       for (const v of filteredVariants) {
         const frame = await buildVariant(template, v);
