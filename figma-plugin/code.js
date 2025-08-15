@@ -1080,19 +1080,26 @@ figma.ui.onmessage = async (msg) => {
     if (templateVersion && variations.length > 0) {
       filteredVariants = job.variants.filter(variant => {
         if (variant.template_variation) {
-          const variantType = variant.template_variation.split('-')[1]; // Extract "portrait" or "square"
+          const parts = String(variant.template_variation).split('-');
+          const variantType = parts.length > 1 ? parts[1] : undefined; // Expect 'portrait' or 'square'
           console.log(`[Plugin] Variant ${variant.id}: template_variation="${variant.template_variation}", extracted type="${variantType}"`);
+          // If we can't extract a type (e.g., template_variation is just '01'), don't filter it out
+          if (!variantType) return true;
           return variations.includes(variantType);
         }
         console.log(`[Plugin] Variant ${variant.id}: no template_variation field, including by default`);
         return true; // Include if no template variation specified
       });
+      if (filteredVariants.length === 0) {
+        console.warn(`[Plugin] No variants matched the requested variations; falling back to all variants.`);
+        filteredVariants = job.variants;
+      }
       console.log(`[Plugin] Filtered variants: ${filteredVariants.length} of ${job.variants.length} based on selected variations`);
     }
 
     // Use the first variant's template name as the base template
     // This should come from the claims generation, not be constructed from job format
-    const baseTemplateName = (filteredVariants[0] && filteredVariants[0].template_name);
+    const baseTemplateName = (filteredVariants[0] && filteredVariants[0].template_name) || (job.variants[0] && job.variants[0].template_name);
     if (!baseTemplateName) {
       throw new Error(`No template name found in variants. Please ensure claims were generated with a template.`);
     }
