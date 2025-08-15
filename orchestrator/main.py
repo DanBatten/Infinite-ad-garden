@@ -13,6 +13,59 @@ from orchestrator.generators import image_brief, generate_image_url
 def load_json(p: str) -> Dict[str, Any]:
     return json.load(open(p, "r", encoding="utf-8"))
 
+def _split_family_and_style(raw: str):
+    """Split a font string like 'Inter Bold' -> ('Inter', 'Bold').
+    If only family provided, default style to 'Regular'.
+    Accepts 'Semi Bold' and other spaced styles.
+    """
+    if not raw:
+        return (None, None)
+    value = str(raw).strip()
+    # Known styles, longer first
+    known_styles = [
+        "Extra Black", "ExtraBold", "Extra Bold",
+        "SemiBold", "Semi Bold", "DemiBold", "Demi Bold",
+        "Black", "Bold", "Medium", "Light", "Thin", "Regular", "Book", "Roman"
+    ]
+    # Try exact suffix match
+    for style in known_styles:
+        if value.lower().endswith(style.lower()):
+            family = value[:-len(style)].strip()
+            # Normalize style spacing (e.g., 'Semi Bold' -> 'SemiBold')
+            normalized_style = style.replace(" ", "") if style in ["Semi Bold", "Demi Bold", "Extra Bold", "Extra Black"] else style
+            return (family or value, normalized_style)
+    # Fallback: last token as style if short
+    parts = value.split()
+    if len(parts) > 1:
+        return (" ".join(parts[:-1]).strip(), parts[-1])
+    return (value, "Regular")
+
+def _load_brand_txt_fonts(brand_folder: Path) -> Dict[str, str]:
+    """Best-effort parse of inputs/{brand}/brand.txt for font overrides.
+    Recognizes lines like 'Heading Font: Inter Bold' or 'heading: Inter Bold'.
+    Returns keys: heading_font, body_font, cta_font (strings as in source).
+    """
+    result: Dict[str, str] = {}
+    txt_path = brand_folder / "brand.txt"
+    if not txt_path.exists():
+        return result
+    try:
+        for line in txt_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            lower = line.strip().lower()
+            if not lower:
+                continue
+            # extract value after ':' if present
+            val = line.split(":", 1)[1].strip() if ":" in line else None
+            if any(k in lower for k in ["heading font", "heading_typography", "heading"]) and val:
+                result["heading_font"] = val
+            elif any(k in lower for k in ["body font", "body_typography", "body"]) and val:
+                result["body_font"] = val
+            elif any(k in lower for k in ["cta font", "cta_typography", "cta"]) and val:
+                result["cta_font"] = val
+    except Exception:
+        pass
+    return result
+
 # ---- LLM availability (module scope, no rebinding inside main)
 HAS_LLM = False
 try:
@@ -153,6 +206,20 @@ def main():
         except ImportError:
             print("[IAG] Template manager not available, proceeding without template requirements", flush=True)
 
+    # Derive brand fonts from enhanced JSON, with optional overrides from brand.txt
+    brand_folder = Path(f"inputs/{brand_file}")
+    brand_txt_fonts = _load_brand_txt_fonts(brand_folder)
+    # Base from enhanced JSON
+    heading_family_json = brand.get("type", {}).get("heading") or brand.get("visual", {}).get("typography", {}).get("heading")
+    body_family_json    = brand.get("type", {}).get("body")    or brand.get("visual", {}).get("typography", {}).get("body")
+    # Allow brand.txt overrides if present
+    heading_raw = brand_txt_fonts.get("heading_font", heading_family_json)
+    body_raw    = brand_txt_fonts.get("body_font", body_family_json)
+    cta_raw     = brand_txt_fonts.get("cta_font", heading_raw)
+    heading_family, heading_style = _split_family_and_style(heading_raw)
+    body_family, body_style       = _split_family_and_style(body_raw)
+    _, cta_style                  = _split_family_and_style(cta_raw)
+
     for idx, claim in enumerate(claims):
         try:
             if use_llm:
@@ -211,7 +278,13 @@ def main():
                         "claim": claim,
                         "logo_url": brand["logo_url"],
                         "palette": brand["palette"],
-                        "type": brand["type"],
+                        "type": {
+                            "heading": heading_family or brand.get("type", {}).get("heading"),
+                            "body": body_family or brand.get("type", {}).get("body"),
+                            "headingStyle": heading_style or "Regular",
+                            "bodyStyle": body_style or "Regular",
+                            "ctaStyle": cta_style or "Bold",
+                        },
                         "template_name": template_name,
                         "template_variation": variation.name,
                         "aspect_ratio": variation.aspect_ratio,
@@ -234,7 +307,13 @@ def main():
                     "claim": claim,
                     "logo_url": brand["logo_url"],
                     "palette": brand["palette"],
-                    "type": brand["type"],
+                    "type": {
+                        "heading": heading_family or brand.get("type", {}).get("heading"),
+                        "body": body_family or brand.get("type", {}).get("body"),
+                        "headingStyle": heading_style or "Regular",
+                        "bodyStyle": body_style or "Regular",
+                        "ctaStyle": cta_style or "Bold",
+                    },
                     "template_name": template_name,
                     "template_variation": template_variation,
                 }
