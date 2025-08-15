@@ -296,6 +296,8 @@ class ImageMatcher {
 const imageMatcher = new ImageMatcher();
 // Cache for template requirements parsed from Guide frames (by full Template- name)
 let templateRequirementsCache = {};
+// Track images chosen within a single batch to encourage diversity
+let BATCH_CHOSEN_IMAGES = new Set();
 
 // Session counter for unique frame names
 let sessionRunCounter = 0;
@@ -441,11 +443,30 @@ async function placeBestImageForVariant(variant, frame, imagePlaceholder, cleanT
 
       // orientation bonus
       if (desiredOrientation && img.tags.indexOf(desiredOrientation) !== -1) score += 2.0;
+      // light penalty if already used in this batch
+      try { if (BATCH_CHOSEN_IMAGES && BATCH_CHOSEN_IMAGES.has(img.id)) score -= 1.5; } catch {}
 
       return { img, score };
     }).sort((a, b) => b.score - a.score);
 
-    const pick = ranked.length ? ranked[0].img : null;
+    // Diversity sampling controlled by threshold slider (lower threshold -> more variety)
+    const threshold = Number(imageMatcher.threshold || 70);
+    const diversity = Math.max(0, Math.min(1, (100 - threshold) / 100)); // 0..1
+    const topK = Math.max(1, Math.min(ranked.length, 1 + Math.round(diversity * 4))); // 1..5
+    const temperature = 0.5 + diversity * 1.5; // 0.5..2.0
+
+    let pick = null;
+    if (ranked.length) {
+      const subset = ranked.slice(0, topK);
+      const weights = subset.map(r => Math.exp(r.score / temperature));
+      const sum = weights.reduce((a, b) => a + b, 0);
+      let r = Math.random() * sum;
+      for (let i = 0; i < subset.length; i++) {
+        r -= weights[i];
+        if (r <= 0) { pick = subset[i].img; break; }
+      }
+      if (!pick) pick = subset[0].img;
+    }
     if (!pick) return null;
 
     // Clone and place
@@ -455,7 +476,8 @@ async function placeBestImageForVariant(variant, frame, imagePlaceholder, cleanT
     cloned.resize(imagePlaceholder.width, imagePlaceholder.height);
     frame.insertChild(0, cloned);
     imagePlaceholder.visible = false;
-    console.log(`🖼️ Placed best image "${pick.name}" (score ${ranked[0].score}) for template ${fullTemplateKey}`);
+    try { if (BATCH_CHOSEN_IMAGES) BATCH_CHOSEN_IMAGES.add(pick.id); } catch {}
+    console.log(`🖼️ Placed image "${pick.name}" for template ${fullTemplateKey} (topK=${topK}, temp=${temperature.toFixed(2)})`);
     return cloned;
   } catch (err) {
     console.error('Error in placeBestImageForVariant:', err);
@@ -1186,6 +1208,8 @@ figma.ui.onmessage = async (msg) => {
       const varLabel = (Array.isArray(variations) && variations.length > 0) ? variations.join('+') : 'all';
       const batchName = `Batch/${brandName}-${cleanTemplateName}-v${version}-${varLabel}-${job.job_id || jobId}_run${sessionRunCounter}`;
 
+      // Reset per-batch chosen images set to encourage diversity within this batch
+      try { BATCH_CHOSEN_IMAGES = new Set(); } catch {}
       const batch = ensureBatchFrame(batchName, template, 5, rows, 120, pad);
 
       for (const v of filteredVariants) {
