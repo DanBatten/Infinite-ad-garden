@@ -71,13 +71,15 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     # Lightweight RAG: attach concise brand/global knowledge as a prefix note
     brand_name = brand.get("name", "")
     # Knowledge influence budgets
-    infl = os.getenv("KNOWLEDGE_INFLUENCE", "medium").lower()
+    # Prefer separate brand vs ad influence if provided
+    infl = os.getenv("KNOWLEDGE_INFLUENCE", os.getenv("KNOWLEDGE_AD_INFLUENCE", "medium")).lower()
+    brand_infl = os.getenv("KNOWLEDGE_BRAND_INFLUENCE", infl).lower()
     budgets = {
         "low": (1000, 1000),
         "medium": (3000, 3000),
         "high": (6000, 6000),
     }
-    brand_chars, global_chars = budgets.get(infl, budgets["medium"]) 
+    brand_chars, global_chars = budgets.get(brand_infl, budgets["medium"]) 
     kb = load_knowledge_texts(brand_name, brand_chars=brand_chars, global_chars=global_chars)
     if kb:
         user = f"""[REFERENCE DOCS]\n{kb}\n\n[INSTRUCTION]\n{user}"""
@@ -139,9 +141,10 @@ def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any],
             template_guidance = template_requirements['metadata'].get('prompt_guidance', '')
         
         # Include knowledge with independent budgets for brand/global
-        infl = os.getenv("KNOWLEDGE_INFLUENCE", "medium").lower()
+        infl = os.getenv("KNOWLEDGE_INFLUENCE", os.getenv("KNOWLEDGE_AD_INFLUENCE", "medium")).lower()
+        brand_infl = os.getenv("KNOWLEDGE_BRAND_INFLUENCE", infl).lower()
         budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
-        b_chars, g_chars = budgets.get(infl, budgets["medium"]) 
+        b_chars, g_chars = budgets.get(brand_infl, budgets["medium"]) 
         kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
         prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
 
@@ -171,9 +174,10 @@ JSON:"""
     else:
         # Fallback to default structure if no template requirements
         # Include knowledge
-        infl = os.getenv("KNOWLEDGE_INFLUENCE", "medium").lower()
+        infl = os.getenv("KNOWLEDGE_INFLUENCE", os.getenv("KNOWLEDGE_AD_INFLUENCE", "medium")).lower()
+        brand_infl = os.getenv("KNOWLEDGE_BRAND_INFLUENCE", infl).lower()
         budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
-        b_chars, g_chars = budgets.get(infl, budgets["medium"]) 
+        b_chars, g_chars = budgets.get(brand_infl, budgets["medium"]) 
         kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
         prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
 

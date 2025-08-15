@@ -1272,7 +1272,9 @@ figma.ui.onmessage = async (msg) => {
           brandFile: msg.brandFile,
           claimCount: msg.claimCount,
           claimStyle: msg.claimStyle,
-          templateName: msg.templateName
+          templateName: msg.templateName,
+          knowledgeAdInfluence: msg.knowledgeAdInfluence || 'medium',
+          knowledgeBrandInfluence: msg.knowledgeBrandInfluence || 'medium'
         })
       })
       .then(response => response.json())

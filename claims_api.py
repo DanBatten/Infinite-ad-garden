@@ -20,6 +20,8 @@ def generate_claims():
         claim_style = data.get('claimStyle', 'mixed-styles')
         template_name = data.get('templateName')  # New: template-specific claims
         template_variation = data.get('templateVariation', '01')  # Default to version 01 if not specified
+        knowledge_ad = data.get('knowledgeAdInfluence', 'medium')
+        knowledge_brand = data.get('knowledgeBrandInfluence', 'medium')
         
         print(f"🎯 Generating claims for {brand_file}, count: {claim_count}, style: {claim_style}")
         if template_name:
@@ -33,7 +35,9 @@ def generate_claims():
             'PYTHONPATH': os.getcwd(),
             'CLAIM_COUNT': str(claim_count),
             'CLAIM_STYLE': claim_style,
-            'BRAND_FILE': brand_file
+            'BRAND_FILE': brand_file,
+            'KNOWLEDGE_INFLUENCE': knowledge_ad,
+            'KNOWLEDGE_BRAND_INFLUENCE': knowledge_brand
         }
         
         # Add template information if provided

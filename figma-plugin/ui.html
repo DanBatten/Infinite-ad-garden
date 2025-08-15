@@ -543,6 +543,24 @@
             <option value="mixed-styles">Mixed Styles</option>
           </select>
         </div>
+
+        <div class="input-group">
+          <label>Ad Knowledge Influence</label>
+          <select id="adKnowledgeInfluence">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label>Brand Knowledge Influence</label>
+          <select id="brandKnowledgeInfluence">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
         
         <div class="input-group">
           <label>Template (Optional)</label>
@@ -1290,7 +1308,9 @@
               brandFile, 
               claimCount, 
               claimStyle,
-              templateName
+              templateName,
+              knowledgeAdInfluence: document.getElementById('adKnowledgeInfluence')?.value || 'medium',
+              knowledgeBrandInfluence: document.getElementById('brandKnowledgeInfluence')?.value || 'medium'
             } 
           }, '*');
         };
