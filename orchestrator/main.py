@@ -56,11 +56,15 @@ def _load_brand_txt_fonts(brand_folder: Path) -> Dict[str, str]:
                 continue
             # extract value after ':' if present
             val = line.split(":", 1)[1].strip() if ":" in line else None
-            if any(k in lower for k in ["heading font", "heading_typography", "heading"]) and val:
+            # Accept common synonyms
+            heading_keys = ["heading font", "headline font", "heading_typography", "headline", "title", "heading"]
+            body_keys    = ["body copy font", "body font", "body_typography", "body copy", "body"]
+            cta_keys     = ["cta font", "cta_typography", "cta", "button font", "button"]
+            if any(k in lower for k in heading_keys) and val:
                 result["heading_font"] = val
-            elif any(k in lower for k in ["body font", "body_typography", "body"]) and val:
+            elif any(k in lower for k in body_keys) and val:
                 result["body_font"] = val
-            elif any(k in lower for k in ["cta font", "cta_typography", "cta"]) and val:
+            elif any(k in lower for k in cta_keys) and val:
                 result["cta_font"] = val
     except Exception:
         pass
