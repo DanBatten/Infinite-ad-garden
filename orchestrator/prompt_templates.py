@@ -36,6 +36,12 @@ Write:
 - value_props (array of 4 short benefit statements, 15-25 chars each, no medical claims)
 - cta (2–3 words, action-oriented)
 
+Creativity guidelines:
+- Use fresh, surprising verbs and concrete imagery
+- Avoid cliché openings and overused verbs: elevate, unlock, transform, discover, reveal, experience, boost
+- Prefer specificity over generic phrasing; avoid repeating words across outputs
+- Keep on-brand and human, not robotic; no exclamation points unless essential
+
 JSON:
 {{"headline":"…","value_props":["…","…","…","…"],"cta":"…"}}
 """
