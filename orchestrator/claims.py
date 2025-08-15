@@ -121,6 +121,32 @@ def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any],
     Returns dynamic structure based on template requirements.
     Completely template-driven - no hardcoded fields.
     """
+    # Helper: banned headline verbs we want to avoid (too common)
+    banned_verbs = [
+        "elevate", "unlock", "discover", "transform", "reveal", "experience", "boost"
+    ]
+
+    def _needs_rewrite(text: str) -> bool:
+        lower = (text or "").lower()
+        return any(w in lower for w in banned_verbs)
+
+    def _rewrite_headline(text: str) -> str:
+        try:
+            system = "You are a concise, on-brand headline writer. Return JSON only."
+            user = (
+                f"Tone: {brand.get('tone','')}\n"
+                f"Audience: {strategy.get('audience','')}\n"
+                f"Current: '{text}'\n\n"
+                f"Rewrite this as a single fresh headline (40-70 chars) WITHOUT using these verbs or their direct variants: {', '.join(banned_verbs)}.\n"
+                f"Keep meaning and legality; avoid hype.\n\n"
+                "JSON:{\"headline\":\"…\"}"
+            )
+            out = llm_json(system, user) or {}
+            new_h = (out.get("headline") or "").strip()
+            return new_h or text
+        except Exception:
+            return text
+
     # Build dynamic prompt based on template requirements
     if template_requirements and template_requirements.get('elements'):
         # Template-specific generation
@@ -169,7 +195,11 @@ JSON:"""
         # Return only the fields that the template requires
         result = {}
         for field in required_fields:
-            result[field] = (out.get(field) or "").strip() or f"Default {field}"
+            val = (out.get(field) or "").strip() or f"Default {field}"
+            # If this field looks like a headline, optionally rewrite to avoid banned words
+            if field.strip().replace('#','').upper().startswith('HEADLINE') and _needs_rewrite(val):
+                val = _rewrite_headline(val)
+            result[field] = val
         
         return result
     else:
@@ -190,6 +220,8 @@ JSON:"""
         
         out = llm_json(EXPAND_SYSTEM, user) or {}
         headline = (out.get("headline") or "").strip() or claim
+        if _needs_rewrite(headline):
+            headline = _rewrite_headline(headline)
         value_props = out.get("value_props", [])
         if not value_props or len(value_props) < 4:
             value_props = [
