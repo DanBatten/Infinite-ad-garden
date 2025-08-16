@@ -84,6 +84,9 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     kb = load_knowledge_texts(brand_name, brand_chars=brand_chars, global_chars=global_chars)
     if kb:
         user = f"""[REFERENCE DOCS]\n{kb}\n\n[INSTRUCTION]\n{user}"""
+    if os.getenv("DEBUG_PROMPTS", "false").lower() in ("1","true","yes"):
+        print("\n[DEBUG] CLAIMS_SYSTEM:\n" + CLAIMS_SYSTEM + "\n", flush=True)
+        print("[DEBUG] CLAIMS_USER:\n" + user + "\n", flush=True)
     out = llm_json(CLAIMS_SYSTEM, user) or {}
     seen: set = set()
     all_claims: List[Dict[str, str]] = []
@@ -189,7 +192,9 @@ Generate ONLY the text elements specified above. Each element should respect the
 Return JSON with exactly these fields: {chr(10).join(f'"{field}": "..."' for field in required_fields)}
 
 JSON:"""
-        
+        if os.getenv("DEBUG_PROMPTS", "false").lower() in ("1","true","yes"):
+            print("\n[DEBUG] EXPAND_SYSTEM (template):\n" + EXPAND_SYSTEM + "\n", flush=True)
+            print("[DEBUG] EXPAND_USER (template):\n" + user + "\n", flush=True)
         out = llm_json(EXPAND_SYSTEM, user) or {}
         
         # Return only the fields that the template requires
@@ -218,6 +223,9 @@ JSON:"""
             claim=claim,
         )
         
+        if os.getenv("DEBUG_PROMPTS", "false").lower() in ("1","true","yes"):
+            print("\n[DEBUG] EXPAND_SYSTEM (generic):\n" + EXPAND_SYSTEM + "\n", flush=True)
+            print("[DEBUG] EXPAND_USER (generic):\n" + user + "\n", flush=True)
         out = llm_json(EXPAND_SYSTEM, user) or {}
         headline = (out.get("headline") or "").strip() or claim
         if _needs_rewrite(headline):
