@@ -12,6 +12,23 @@ from .prompt_templates import (
     VERIFY_SYSTEM,
     VERIFY_USER,
 )
+from pathlib import Path
+import datetime
+def _debug_enabled() -> bool:
+    return os.getenv("DEBUG_PROMPTS", "false").lower() in ("1", "true", "yes")
+
+
+def _debug_write(block: str, text: str):
+    if not _debug_enabled():
+        return
+    try:
+        p = Path(os.getenv("PROMPT_DEBUG_FILE", "logs/prompts.log"))
+        p.parent.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.datetime.now().isoformat()
+        with p.open("a", encoding="utf-8") as f:
+            f.write(f"\n=== {block} @ {stamp} ===\n{text}\n")
+    except Exception:
+        pass
 
 def _ing_str(formulation: Dict[str, Any]) -> str:
     parts: List[str] = []
@@ -94,9 +111,11 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     user = profile_block + "\n" + user
     if kb:
         user = f"""[REFERENCE DOCS]\n{kb}\n\n[INSTRUCTION]\n{user}"""
-    if os.getenv("DEBUG_PROMPTS", "false").lower() in ("1","true","yes"):
+    if _debug_enabled():
         print("\n[DEBUG] CLAIMS_SYSTEM:\n" + CLAIMS_SYSTEM + "\n", flush=True)
         print("[DEBUG] CLAIMS_USER:\n" + user + "\n", flush=True)
+        _debug_write("CLAIMS_SYSTEM", CLAIMS_SYSTEM)
+        _debug_write("CLAIMS_USER", user)
     out = llm_json(CLAIMS_SYSTEM, user) or {}
     seen: set = set()
     all_claims: List[Dict[str, str]] = []
@@ -202,9 +221,11 @@ Generate ONLY the text elements specified above. Each element should respect the
 Return JSON with exactly these fields: {chr(10).join(f'"{field}": "..."' for field in required_fields)}
 
 JSON:"""
-        if os.getenv("DEBUG_PROMPTS", "false").lower() in ("1","true","yes"):
+        if _debug_enabled():
             print("\n[DEBUG] EXPAND_SYSTEM (template):\n" + EXPAND_SYSTEM + "\n", flush=True)
             print("[DEBUG] EXPAND_USER (template):\n" + user + "\n", flush=True)
+            _debug_write("EXPAND_SYSTEM(template)", EXPAND_SYSTEM)
+            _debug_write("EXPAND_USER(template)", user)
         out = llm_json(EXPAND_SYSTEM, user) or {}
         
         # Return only the fields that the template requires
@@ -233,9 +254,11 @@ JSON:"""
             claim=claim,
         )
         
-        if os.getenv("DEBUG_PROMPTS", "false").lower() in ("1","true","yes"):
+        if _debug_enabled():
             print("\n[DEBUG] EXPAND_SYSTEM (generic):\n" + EXPAND_SYSTEM + "\n", flush=True)
             print("[DEBUG] EXPAND_USER (generic):\n" + user + "\n", flush=True)
+            _debug_write("EXPAND_SYSTEM(generic)", EXPAND_SYSTEM)
+            _debug_write("EXPAND_USER(generic)", user)
         out = llm_json(EXPAND_SYSTEM, user) or {}
         headline = (out.get("headline") or "").strip() or claim
         if _needs_rewrite(headline):
