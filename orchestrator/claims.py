@@ -54,22 +54,14 @@ def _extract_prompt_sections(user_text: str) -> Dict[str, str]:
     return {"attachments": attachments, "instruction": instruction}
 
 def _debug_log_prompt(tag: str, system_text: str, user_text: str):
-    """Write clear, minimal sections to the prompt log without timestamps or noisy headers."""
+    """Write ONLY the prompt (instruction) text to the log, no headers or attachments."""
     if not _debug_enabled():
         return
     try:
         sections = _extract_prompt_sections(user_text)
         prompt_only = sections.get("instruction", "").strip()
-        attachments_only = sections.get("attachments", "").strip()
-        log_chunks: List[str] = []
-        if system_text:
-            log_chunks.append(f"-- SYSTEM {tag} --\n{system_text}\n")
         if prompt_only:
-            log_chunks.append(f"-- PROMPT {tag} --\n{prompt_only}\n")
-        if attachments_only:
-            log_chunks.append(f"-- ATTACHMENTS {tag} --\n{attachments_only}\n")
-        if log_chunks:
-            _debug_write(f"{tag}", "\n".join(log_chunks))
+            _debug_write(tag, prompt_only)
     except Exception:
         pass
 
