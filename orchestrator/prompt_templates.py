@@ -1,13 +1,15 @@
 CLAIMS_SYSTEM = """You are a senior paid social copywriter for performance ads.
 Return JSON only. Be creative yet compliant: avoid disease or drug-like claims (treat/cure/prevent); keep language truthful and testable."""
 
-CLAIMS_USER = """You are a senior paid social copywriter. Use the attached reference docs for brand and creative context.
+CLAIMS_USER = """You are a senior paid social copywriter. Use the attached reference docs for brand and creative context. All claims must be on-brand for {brand_name}.
 
 STYLE TO FOLLOW:
 {style_instruction}
 
 BRAND SNAPSHOT (orientation only):
 - Brand: {brand_name}
+- Tagline: {tagline}
+- Positioning: {positioning}
 - Tone: {tone}
 - Audience: {audience}
 - Angles context: {angle_name}
@@ -31,6 +33,7 @@ OUTPUT FORMAT (JSON object):
 }}
 
 CONSTRAINTS
+- Ground each line in the brand positioning above; avoid generic claims.
 - Use brand-compliant language only; avoid medical/disease claims.
 - No duplicates across claims.
 - Balance voice variants across the batch (~40% first_person, 30% why_explainer, 30% stat_hook).

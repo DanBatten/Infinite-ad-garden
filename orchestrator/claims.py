@@ -106,18 +106,11 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     brand_profile = load_brand_profile(brand.get("name", ""))
     user = CLAIMS_USER.format(
         brand_name=brand.get("name",""),
+        tagline=brand.get("tagline",""),
+        positioning=brand.get("positioning","Overall brand positioning"),
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
         angle_name=f"All angles: {angle_context}",
-        pain_point="Various pain points across angles",
-        trigger="Multiple triggers",
-        positioning="Overall brand positioning",
-        ingredients=_ing_str(formulation),
-        dos=", ".join(brand.get("voice_guide", {}).get("dos", [])),
-        donts=", ".join(brand.get("voice_guide", {}).get("donts", [])),
-        prefer=", ".join(brand.get("voice_guide", {}).get("lexicon", {}).get("prefer", [])),
-        avoid=", ".join(brand.get("voice_guide", {}).get("lexicon", {}).get("avoid", [])),
-        examples="\n".join(f"- {ex}" for ex in angles[0].get("headline_examples", []) if angles),
         target_count=target_per_angle * len(angles) if angles else target_per_angle,
         style_instruction=style_instruction,
         style=style,
@@ -245,9 +238,23 @@ def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any],
         budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
         b_chars, g_chars = budgets.get(brand_infl, budgets["medium"]) 
         kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
-        attachments = kb or ""
+        # Include concise brand profile in attachments so the LLM has brand-specific context
+        bp = load_brand_profile(brand.get("name",""))
+        profile_lines = []
+        ings = bp.get('product_ingredients',{}).get('ingredients',[])
+        if ings:
+            profile_lines.append("Product & Ingredients:\n" + "\n".join(ings))
+        pos = bp.get('positioning_statement','')
+        if pos:
+            profile_lines.append("Positioning:\n" + pos)
+        audp = bp.get('audience_persona',{}).get('audience','')
+        if audp:
+            profile_lines.append("Audience:\n" + audp)
+        profile_text = "\n\n".join(profile_lines)
+        attachments = "\n\n".join([t for t in [profile_text, kb] if t])
 
-        body = f"""Tone: {brand.get("tone", "")}
+        body = f"""Brand: {brand.get("name", "")}
+Tone: {brand.get("tone", "")}
 Audience: {strategy.get("audience", "")}
 Claim: "{claim}"
 
@@ -284,7 +291,19 @@ JSON:"""
         budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
         b_chars, g_chars = budgets.get(brand_infl, budgets["medium"]) 
         kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
-        attachments = kb or ""
+        bp = load_brand_profile(brand.get("name",""))
+        profile_lines = []
+        ings = bp.get('product_ingredients',{}).get('ingredients',[])
+        if ings:
+            profile_lines.append("Product & Ingredients:\n" + "\n".join(ings))
+        pos = bp.get('positioning_statement','')
+        if pos:
+            profile_lines.append("Positioning:\n" + pos)
+        audp = bp.get('audience_persona',{}).get('audience','')
+        if audp:
+            profile_lines.append("Audience:\n" + audp)
+        profile_text = "\n\n".join(profile_lines)
+        attachments = "\n\n".join([t for t in [profile_text, kb] if t])
 
         body = EXPAND_USER.format(
             tone=brand.get("tone", ""),
