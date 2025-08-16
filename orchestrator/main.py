@@ -7,7 +7,6 @@ import json, uuid, sys, traceback, os
 from typing import Dict, Any, List
 
 from orchestrator.storage import save_job
-from orchestrator.compliance import validate_claim
 
 def load_json(p: str) -> Dict[str, Any]:
     return json.load(open(p, "r", encoding="utf-8"))
@@ -118,7 +117,7 @@ def _fallback_claims_from_brand(brand: Dict[str, Any]) -> List[str]:
 HAS_LLM = False
 try:
     # NOTE: import the new angle-aware generator
-    from orchestrator.claims import generate_claims_by_angle, expand_copy, verify_or_rewrite
+    from orchestrator.claims import generate_claims_by_angle, expand_copy
     HAS_LLM = True
 except Exception:
     HAS_LLM = False
@@ -165,19 +164,14 @@ def main():
             print("[IAG] LLM claims by angle…", flush=True)
             angle_map = generate_claims_by_angle(cfg, target_per_angle=max(per_angle, 8), style=claim_style)
 
-            # verify / rewrite with compliance
+            # accept all non-empty claims without compliance filtering/rewrite
             allowed_pool: List[Dict[str, str]] = []
             for angle_id, items in angle_map.items():
                 for c in items:
                     txt = (c.get("text") or "").strip()
                     if not txt:
                         continue
-                    if not validate_claim(txt, type("F", (), formulation)):
-                        continue
-                    verdict = verify_or_rewrite(txt, formulation, formulation.get("banned_claims", []))
-                    use_txt = txt if verdict.get("ok") else (verdict.get("rewrite") or "").strip()
-                    if use_txt and validate_claim(use_txt, type("F", (), formulation)):
-                        allowed_pool.append({"text": use_txt, "angle_id": angle_id})
+                    allowed_pool.append({"text": txt, "angle_id": angle_id})
 
             # even sampling across angles
             by_angle: Dict[str, List[str]] = {}

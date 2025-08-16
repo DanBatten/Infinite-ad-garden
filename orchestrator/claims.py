@@ -9,8 +9,6 @@ from .prompt_templates import (
     CLAIMS_USER,
     EXPAND_SYSTEM,
     EXPAND_USER,
-    VERIFY_SYSTEM,
-    VERIFY_USER,
 )
 from pathlib import Path
 import datetime
@@ -333,17 +331,4 @@ JSON:"""
         cta = (out.get("cta") or "").strip() or "Learn More"
         return {"headline": headline, "value_props": value_props, "cta": cta}
 
-def verify_or_rewrite(claim: str, formulation: Dict[str, Any], banned: List[str]) -> Dict[str, Any]:
-    """
-    Returns {"ok": bool, "reason": str, "rewrite": str}
-    """
-    user = VERIFY_USER.format(
-        claim=claim,
-        ingredients=_ing_str(formulation),
-        banned=", ".join(banned or []),
-    )
-    out = llm_json(VERIFY_SYSTEM, user) or {}
-    ok = bool(out.get("ok"))
-    reason = (out.get("reason") or "").strip()
-    rewrite = (out.get("rewrite") or "").strip()
-    return {"ok": ok, "reason": reason, "rewrite": rewrite}
+## Compliance verification removed per request

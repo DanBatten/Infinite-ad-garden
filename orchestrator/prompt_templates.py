@@ -50,8 +50,6 @@ Output Format (single JSON object):
 }}
 
 Constraints
-- Ground each line in the brand positioning above; avoid generic claims.
-- Use brand-compliant language only; avoid medical/disease claims.
 - No duplicates across claims.
 - Balance voice types across the batch (~40% first_person, 30% why_explainer, 30% stat_hook).
 - Each claim should be testable as a headline.
@@ -79,10 +77,4 @@ JSON:
 {{"headline":"…","value_props":["…","…","…","…"],"cta":"…"}}
 """
 
-VERIFY_SYSTEM = """You are a strict supplement claims reviewer. JSON only."""
-VERIFY_USER = """Claim: "{claim}"
-Ingredients: {ingredients}
-Banned: {banned}
-Reject disease, guarantees, “clinically proven” without proof, or non-plausible mechanisms.
-
-JSON: {{"ok": true|false, "reason":"…", "rewrite":"…"}}"""
+# Compliance prompt templates removed per request
