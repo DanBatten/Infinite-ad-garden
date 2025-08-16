@@ -245,9 +245,9 @@ def expand_copy(brand: Dict[str, Any], claim: str, strategy: Dict[str, Any],
         budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
         b_chars, g_chars = budgets.get(brand_infl, budgets["medium"]) 
         kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
-        prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
+        attachments = kb or ""
 
-        user = f"""{prefix}Tone: {brand.get("tone", "")}
+        body = f"""Tone: {brand.get("tone", "")}
 Audience: {strategy.get("audience", "")}
 Claim: "{claim}"
 
@@ -261,6 +261,7 @@ Generate ONLY the text elements specified above. Each element should respect the
 Return JSON with exactly these fields: {chr(10).join(f'"{field}": "..."' for field in required_fields)}
 
 JSON:"""
+        user = f"""[REFERENCE DOCS]\n{attachments}\n\n[INSTRUCTION]\n{body}"""
         if _debug_enabled():
             _debug_log_prompt("EXPAND(template)", EXPAND_SYSTEM, user)
         out = llm_json(EXPAND_SYSTEM, user) or {}
@@ -283,13 +284,14 @@ JSON:"""
         budgets = {"low": (800, 800), "medium": (2000, 2000), "high": (4000, 4000)}
         b_chars, g_chars = budgets.get(brand_infl, budgets["medium"]) 
         kb = load_knowledge_texts(brand.get("name",""), brand_chars=b_chars, global_chars=g_chars)
-        prefix = f"[REFERENCE DOCS]\n{kb}\n\n" if kb else ""
+        attachments = kb or ""
 
-        user = prefix + EXPAND_USER.format(
+        body = EXPAND_USER.format(
             tone=brand.get("tone", ""),
             audience=strategy.get("audience", ""),
             claim=claim,
         )
+        user = f"""[REFERENCE DOCS]\n{attachments}\n\n[INSTRUCTION]\n{body}"""
         
         if _debug_enabled():
             _debug_log_prompt("EXPAND(generic)", EXPAND_SYSTEM, user)
