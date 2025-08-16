@@ -105,6 +105,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     # Generate claims for the specific style, using angles as context but not as the primary driver
     brand_profile = load_brand_profile(brand.get("name", ""))
     user = CLAIMS_USER.format(
+        brand_name=brand.get("name",""),
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
         angle_name=f"All angles: {angle_context}",
@@ -118,7 +119,6 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         avoid=", ".join(brand.get("voice_guide", {}).get("lexicon", {}).get("avoid", [])),
         examples="\n".join(f"- {ex}" for ex in angles[0].get("headline_examples", []) if angles),
         target_count=target_per_angle * len(angles) if angles else target_per_angle,
-        product_name=formulation.get("product_name", "the product"),
         style_instruction=style_instruction,
         style=style,
     )
