@@ -30,6 +30,49 @@ def _debug_write(block: str, text: str):
     except Exception:
         pass
 
+def _extract_prompt_sections(user_text: str) -> Dict[str, str]:
+    """Return {attachments, instruction} split using [REFERENCE DOCS] and [INSTRUCTION] markers.
+    If markers are absent, treat entire text as instruction."""
+    attachments = ""
+    instruction = user_text or ""
+    if not user_text:
+        return {"attachments": attachments, "instruction": instruction}
+
+    marker_docs = "[REFERENCE DOCS]"
+    marker_instr = "[INSTRUCTION]"
+    idx_docs = user_text.find(marker_docs)
+    idx_instr = user_text.find(marker_instr)
+    if idx_docs != -1:
+        start_docs = idx_docs + len(marker_docs)
+        end_docs = idx_instr if idx_instr != -1 else len(user_text)
+        attachments = user_text[start_docs:end_docs].strip()
+        if idx_instr != -1:
+            instruction = user_text[idx_instr + len(marker_instr):].strip()
+        else:
+            # No explicit instruction marker; take everything before docs as instruction
+            instruction = user_text[:idx_docs].strip()
+    return {"attachments": attachments, "instruction": instruction}
+
+def _debug_log_prompt(tag: str, system_text: str, user_text: str):
+    """Write clear, minimal sections to the prompt log without timestamps or noisy headers."""
+    if not _debug_enabled():
+        return
+    try:
+        sections = _extract_prompt_sections(user_text)
+        prompt_only = sections.get("instruction", "").strip()
+        attachments_only = sections.get("attachments", "").strip()
+        log_chunks: List[str] = []
+        if system_text:
+            log_chunks.append(f"-- SYSTEM {tag} --\n{system_text}\n")
+        if prompt_only:
+            log_chunks.append(f"-- PROMPT {tag} --\n{prompt_only}\n")
+        if attachments_only:
+            log_chunks.append(f"-- ATTACHMENTS {tag} --\n{attachments_only}\n")
+        if log_chunks:
+            _debug_write(f"{tag}", "\n".join(log_chunks))
+    except Exception:
+        pass
+
 def _ing_str(formulation: Dict[str, Any]) -> str:
     parts: List[str] = []
     for i in formulation.get("key_ingredients", []):
@@ -120,10 +163,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     if ref_docs:
         user = f"""[REFERENCE DOCS]\n{ref_docs}\n\n[INSTRUCTION]\n{user}"""
     if _debug_enabled():
-        print("\n[DEBUG] CLAIMS_SYSTEM:\n" + CLAIMS_SYSTEM + "\n", flush=True)
-        print("[DEBUG] CLAIMS_USER:\n" + user + "\n", flush=True)
-        _debug_write("CLAIMS_SYSTEM", CLAIMS_SYSTEM)
-        _debug_write("CLAIMS_USER", user)
+        _debug_log_prompt("CLAIMS", CLAIMS_SYSTEM, user)
     out = llm_json(CLAIMS_SYSTEM, user) or {}
     seen: set = set()
     all_claims: List[Dict[str, str]] = []
@@ -230,10 +270,7 @@ Return JSON with exactly these fields: {chr(10).join(f'"{field}": "..."' for fie
 
 JSON:"""
         if _debug_enabled():
-            print("\n[DEBUG] EXPAND_SYSTEM (template):\n" + EXPAND_SYSTEM + "\n", flush=True)
-            print("[DEBUG] EXPAND_USER (template):\n" + user + "\n", flush=True)
-            _debug_write("EXPAND_SYSTEM(template)", EXPAND_SYSTEM)
-            _debug_write("EXPAND_USER(template)", user)
+            _debug_log_prompt("EXPAND(template)", EXPAND_SYSTEM, user)
         out = llm_json(EXPAND_SYSTEM, user) or {}
         
         # Return only the fields that the template requires
@@ -263,10 +300,7 @@ JSON:"""
         )
         
         if _debug_enabled():
-            print("\n[DEBUG] EXPAND_SYSTEM (generic):\n" + EXPAND_SYSTEM + "\n", flush=True)
-            print("[DEBUG] EXPAND_USER (generic):\n" + user + "\n", flush=True)
-            _debug_write("EXPAND_SYSTEM(generic)", EXPAND_SYSTEM)
-            _debug_write("EXPAND_USER(generic)", user)
+            _debug_log_prompt("EXPAND(generic)", EXPAND_SYSTEM, user)
         out = llm_json(EXPAND_SYSTEM, user) or {}
         headline = (out.get("headline") or "").strip() or claim
         if _needs_rewrite(headline):
