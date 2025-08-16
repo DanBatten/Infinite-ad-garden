@@ -83,15 +83,15 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     # Style-specific instructions for the LLM
     # Style-specific instructions for the LLM, with creativity guardrails
     style_instructions = {
-        'benefit-focused': "STYLE: Lead with the main benefit the audience cares about most. Use 'you' language and positive, aspirational tone. Frame as personal transformation. Creativity: avoid clichés (e.g., elevate/unlock/transform), use vivid but concise imagery, and vary verbs across claims. Example approach: 'You get [specific benefit] that [tangible outcome].'",
+        'benefit-focused': "STYLE: Lead with the main benefit the audience cares about most. Use 'you' language and positive, aspirational tone. Frame as personal transformation. Creativity: avoid using cliches like elevate, unlock, or transform; use vivid but concise imagery; and vary verbs across claims. Example approach: 'You get [specific benefit] that [tangible outcome].'",
         
-        'problem-solution': "STYLE: Start with a clear, relatable problem the audience recognizes. Then present the product as the natural solution. Use empathetic tone. Creativity: prefer concrete, sensory phrasing; avoid clichés. Example approach: 'Tired of [problem]? [Product] helps by [specific mechanism/benefit].'",
+        'problem-solution': "STYLE: Start with a clear, relatable problem the audience recognizes. Then present the product as the natural solution. Use empathetic tone. Creativity: prefer concrete, sensory phrasing; avoid using cliches like elevate, unlock, or transform. Example approach: 'Tired of [problem]? [Product] helps by [specific mechanism/benefit].'",
         
         'social-proof': "STYLE: Use credibility and validation to build trust. Include customer voices, expert endorsements, or review elements. Keep conversational and authentic. Creativity: avoid generic templates ('Join X others…'); use fresh constructs. Example approach: quote snippets or specific outcomes.",
         
         'urgency-driven': "STYLE: Create urgency with time/quantity triggers and clear calls to action. Use energetic, persuasive tone. Creativity: keep tasteful; avoid hype. Example approach: 'Limited drop—[benefit] starts now.'",
         
-        'mixed-styles': "STYLE: Combine multiple approaches subtly—start with a hook, add a light pain point, include social proof, end with soft urgency. Creativity: rotate verbs and structure; avoid repetition across claims."
+        'mixed-styles': "STYLE: Combine multiple approaches subtly—start with a hook, add a light pain point, include social proof, end with soft urgency. Creativity: rotate verbs and structure; avoid repetition across claims; avoid using cliches like elevate, unlock, or transform."
     }
     
     style_instruction = style_instructions.get(style, style_instructions['mixed-styles'])
