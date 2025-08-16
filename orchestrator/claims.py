@@ -24,9 +24,9 @@ def _debug_write(block: str, text: str):
     try:
         p = Path(os.getenv("PROMPT_DEBUG_FILE", "logs/prompts.log"))
         p.parent.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.datetime.now().isoformat()
         with p.open("a", encoding="utf-8") as f:
-            f.write(f"\n=== {block} @ {stamp} ===\n{text}\n")
+            # Write only the raw text with a minimal newline separator
+            f.write(f"\n{text}\n")
     except Exception:
         pass
 
@@ -69,12 +69,6 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     
     # Generate claims for the specific style, using angles as context but not as the primary driver
     brand_profile = load_brand_profile(brand.get("name", ""))
-    profile_block = (
-        "\n[BRAND PROFILE]\n"
-        f"Product & Ingredients:\n{chr(10).join(brand_profile.get('product_ingredients',{}).get('ingredients',[]))}\n\n"
-        f"Positioning: {brand_profile.get('positioning_statement','')}\n\n"
-        f"Audience/Persona: {brand_profile.get('audience_persona',{}).get('audience','')}\n"
-    )
     user = CLAIMS_USER.format(
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
@@ -107,10 +101,24 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     }
     brand_chars, global_chars = budgets.get(brand_infl, budgets["medium"]) 
     kb = load_knowledge_texts(brand_name, brand_chars=brand_chars, global_chars=global_chars)
-    # Attach high-priority brand profile then knowledge
-    user = profile_block + "\n" + user
+    # Build brand profile reference text and attach as reference docs (not inline prompt)
+    profile_lines = []
+    ings = brand_profile.get('product_ingredients',{}).get('ingredients',[])
+    if ings:
+        profile_lines.append("Product & Ingredients:\n" + "\n".join(ings))
+    pos = brand_profile.get('positioning_statement','')
+    if pos:
+        profile_lines.append("Positioning:\n" + pos)
+    aud = brand_profile.get('audience_persona',{}).get('audience','')
+    if aud:
+        profile_lines.append("Audience:\n" + aud)
+    profile_text = "\n\n".join(profile_lines)
+
+    ref_docs = profile_text
     if kb:
-        user = f"""[REFERENCE DOCS]\n{kb}\n\n[INSTRUCTION]\n{user}"""
+        ref_docs = (ref_docs + "\n\n" if ref_docs else "") + kb
+    if ref_docs:
+        user = f"""[REFERENCE DOCS]\n{ref_docs}\n\n[INSTRUCTION]\n{user}"""
     if _debug_enabled():
         print("\n[DEBUG] CLAIMS_SYSTEM:\n" + CLAIMS_SYSTEM + "\n", flush=True)
         print("[DEBUG] CLAIMS_USER:\n" + user + "\n", flush=True)
