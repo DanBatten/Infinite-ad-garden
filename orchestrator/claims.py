@@ -104,13 +104,17 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     
     # Generate claims for the specific style, using angles as context but not as the primary driver
     brand_profile = load_brand_profile(brand.get("name", ""))
+    # Build angles text for prompt readability
+    angles_text = ", ".join([a.get('name','') for a in angles]) if angles else "beauty-from-within, busy-lifestyle, scientific-backing"
+
     user = CLAIMS_USER.format(
         brand_name=brand.get("name",""),
         tagline=brand.get("tagline",""),
-        positioning=brand.get("positioning","Overall brand positioning"),
+        positioning=brand.get("positioning","Holistic beauty from within; clinically supported ingredients; avoids exaggerated or medical claims"),
+        mission=brand.get("mission","Empower individuals to enhance natural beauty with scientifically-backed holistic supplements"),
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
-        angle_name=f"All angles: {angle_context}",
+        angle_name=angles_text,
         target_count=target_per_angle * len(angles) if angles else target_per_angle,
         style_instruction=style_instruction,
         style=style,
