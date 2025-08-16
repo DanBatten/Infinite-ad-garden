@@ -84,6 +84,36 @@ def _load_brand_txt_fonts(brand_folder: Path) -> Dict[str, str]:
 
     return result
 
+# ---- Fallback claim helpers
+def _fallback_claims_from_brand(brand: Dict[str, Any]) -> List[str]:
+    """Generate safe, brand-appropriate fallback lines when LLM output is empty.
+    Prefers beauty/ritual/glow language drawn from brand positioning and lexicon.
+    """
+    name = brand.get("name", "The brand")
+    positioning = brand.get("positioning") or brand.get("value_prop") or "Beauty from within"
+    lex = (brand.get("voice_guide", {}) or {}).get("lexicon", {})
+    prefer = [w for w in lex.get("prefer", []) if isinstance(w, str)]
+    # Seed words
+    words = prefer or ["glow", "ritual", "balance", "skin", "inner beauty", "calm clarity"]
+    lines = [
+        f"Visible {words[0] if words else 'glow'} from within",
+        f"Make {name} your daily beauty ritual",
+        f"Nourish skin for a smoother, healthier look",
+        f"Beauty that starts inside—simple, steady, consistent",
+        f"Clean ingredients for confident, natural radiance",
+        f"Support skin’s {words[1] if len(words)>1 else 'balance'} every day",
+        f"A calmer routine for clearer, brighter-looking skin",
+        f"Small daily steps, noticeable {words[0] if words else 'glow'}",
+        f"Backed by science, made for everyday beauty",
+        f"Your inside-out approach to modern beauty"
+    ]
+    # De-duplicate and cap
+    out: List[str] = []
+    for l in lines:
+        if l not in out:
+            out.append(l)
+    return out
+
 # ---- LLM availability (module scope, no rebinding inside main)
 HAS_LLM = False
 try:
@@ -168,12 +198,7 @@ def main():
     # ---- BACKFILL to guarantee n claims (if LLM path left us short)
     if use_llm and len(claims) < n:
         # light, safe stock lines to top up
-        bases = [
-            "Steady focus without jitters","Clean energy that lasts","Dial in your flow state",
-            "Energy plus calm clarity","Feel locked-in and light","Smooth focus for long sessions",
-            "Stay sharp and composed","Focus that feels natural","Clarity for heavy lift days",
-            "Energy that respects rest"
-        ]
+        bases = _fallback_claims_from_brand(brand)
         for b in bases:
             if len(claims) >= n: break
             if b not in claims:
@@ -182,12 +207,7 @@ def main():
     # ---- full mock fallback (if LLM produced nothing)
     if not claims:
         print("[IAG] Mock claims fallback", flush=True)
-        bases = [
-            "Steady focus without jitters","Clean energy that lasts","Dial in your flow state",
-            "Energy plus calm clarity","Feel locked-in and light","Smooth focus for long sessions",
-            "Stay sharp and composed","Focus that feels natural","Clarity for heavy lift days",
-            "Energy that respects rest"
-        ]
+        bases = _fallback_claims_from_brand(brand)
         claims = (bases * ((n//len(bases))+1))[:n]
 
     print("[IAG] Claims:", len(claims), flush=True)
