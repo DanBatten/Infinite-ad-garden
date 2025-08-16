@@ -2,6 +2,7 @@
 from typing import Dict, Any, List
 from .llm import llm_json
 from .knowledge import load_knowledge_texts
+from .brand_profile import load_brand_profile
 import os
 from .prompt_templates import (
     CLAIMS_SYSTEM,
@@ -50,6 +51,13 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         angle_context = f"Available angles: {', '.join([a.get('name', '') for a in angles])}"
     
     # Generate claims for the specific style, using angles as context but not as the primary driver
+    brand_profile = load_brand_profile(brand.get("name", ""))
+    profile_block = (
+        "\n[BRAND PROFILE]\n"
+        f"Product & Ingredients:\n{chr(10).join(brand_profile.get('product_ingredients',{}).get('ingredients',[]))}\n\n"
+        f"Positioning: {brand_profile.get('positioning_statement','')}\n\n"
+        f"Audience/Persona: {brand_profile.get('audience_persona',{}).get('audience','')}\n"
+    )
     user = CLAIMS_USER.format(
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
@@ -82,6 +90,8 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     }
     brand_chars, global_chars = budgets.get(brand_infl, budgets["medium"]) 
     kb = load_knowledge_texts(brand_name, brand_chars=brand_chars, global_chars=global_chars)
+    # Attach high-priority brand profile then knowledge
+    user = profile_block + "\n" + user
     if kb:
         user = f"""[REFERENCE DOCS]\n{kb}\n\n[INSTRUCTION]\n{user}"""
     if os.getenv("DEBUG_PROMPTS", "false").lower() in ("1","true","yes"):

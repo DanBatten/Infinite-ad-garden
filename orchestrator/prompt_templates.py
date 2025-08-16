@@ -19,8 +19,13 @@ Examples (DO NOT copy, just understand the brand voice):
 
 📝 TASK:
 Generate EXACTLY {target_count} claims for {product_name}.
+Structure and diversity:
+- Use varied opening patterns across the batch (questions, direct benefits, defamiliarization, proof-led).
+- Keep lines specific and concrete; avoid generic templates.
+- Avoid these overused verbs in headlines: elevate, unlock, transform, discover, reveal, experience, boost.
+- Keep 1–2 sentences; aim for 8–18 words per sentence.
 
-CRITICAL: Each claim MUST embody the specific style approach, tone, and key elements outlined in the PRIMARY INSTRUCTION above. The style is more important than any other factor.
+CRITICAL: Each claim MUST embody the specific style approach, tone, and the above constraints.
 
 JSON:
 {{ "claims": [ {{ "text": "…", "style": "{style}", "support": "How this claim follows the style guidance" }} ] }}"""
