@@ -220,9 +220,22 @@ def main():
                 template_variations = template_manager.get_all_variations_for_template(template_name)
                 print(f"[IAG] All template variations loaded: {len(template_variations)} total", flush=True)
                 
-            print(f"[IAG] Template requirements loaded: {len(template_requirements.get('elements', []))} elements", flush=True)
+            elems_count = len(template_requirements.get('elements', [])) if template_requirements else 0
+            print(f"[IAG] Template requirements loaded: {elems_count} elements", flush=True)
         except ImportError:
             print("[IAG] Template manager not available, proceeding without template requirements", flush=True)
+
+    # If a template was specified but we failed to load any requirements, use a safe headline-only fallback
+    if template_name and (not template_requirements or not template_requirements.get('elements')):
+        print(f"[IAG] No requirements found for '{template_name}'. Using headline-only fallback (no CTA/value props).", flush=True)
+        template_requirements = {
+            "template_name": template_name,
+            "variation_name": template_variation or "01",
+            "elements": [
+                {"name": "#HEADLINE", "max_chars": 70, "description": "Primary headline"}
+            ],
+            "metadata": {"prompt_guidance": "Produce a single impactful headline only. No CTA or value props."}
+        }
 
     # Derive brand fonts from enhanced JSON, with optional overrides from brand.txt
     brand_folder = Path(f"inputs/{brand_file}")
