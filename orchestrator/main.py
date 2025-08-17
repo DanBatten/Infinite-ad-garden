@@ -256,14 +256,31 @@ def main():
     brand_folder = Path(f"inputs/{brand_file}")
     brand_txt_fonts = _load_brand_txt_fonts(brand_folder)
     # Base from enhanced JSON
-    heading_family_json = brand.get("type", {}).get("heading") or brand.get("visual", {}).get("typography", {}).get("heading")
-    body_family_json    = brand.get("type", {}).get("body")    or brand.get("visual", {}).get("typography", {}).get("body")
+    # Prefer structured typography if available
+    heading_dict = (brand.get("typography", {}) or {}).get("heading") or (brand.get("visual", {}).get("typography", {}) or {}).get("heading")
+    body_dict    = (brand.get("typography", {}) or {}).get("body")    or (brand.get("visual", {}).get("typography", {}) or {}).get("body")
+    # Fallbacks from older schema
+    if not heading_dict:
+        heading_dict = brand.get("type", {}).get("heading")
+    if not body_dict:
+        body_dict = brand.get("type", {}).get("body")
+
+    # Extract family/style from structured objects when present
+    heading_family_json = heading_dict.get("family") if isinstance(heading_dict, dict) else heading_dict
+    body_family_json    = body_dict.get("family")    if isinstance(body_dict, dict)    else body_dict
+    heading_style_json  = heading_dict.get("style")  if isinstance(heading_dict, dict) else None
+    body_style_json     = body_dict.get("style")     if isinstance(body_dict, dict)    else None
     # Allow brand.txt overrides if present
     heading_raw = brand_txt_fonts.get("heading_font", heading_family_json)
     body_raw    = brand_txt_fonts.get("body_font", body_family_json)
     cta_raw     = brand_txt_fonts.get("cta_font", heading_raw)
     heading_family, heading_style = _split_family_and_style(heading_raw)
     body_family, body_style       = _split_family_and_style(body_raw)
+    # If JSON explicitly provided styles, prefer them over parsed styles
+    if heading_style_json:
+        heading_style = heading_style_json
+    if body_style_json:
+        body_style = body_style_json
     _, cta_style                  = _split_family_and_style(cta_raw)
 
     # Re-run first call with template requirements now that we have them
@@ -325,6 +342,8 @@ def main():
                         "aspect_ratio": variation.aspect_ratio,
                         "dimensions": variation.dimensions
                     }
+                    if item.get("style"):
+                        variant["style"] = item.get("style")
                     
                     # Add all fields from copy (template-specific)
                     for key, value in copy.items():
@@ -353,6 +372,8 @@ def main():
                     "template_name": tmpl_name,
                     "template_variation": template_variation,
                 }
+                if item.get("style"):
+                    variant["style"] = item.get("style")
                 
                 # Add all fields from copy (template-specific)
                 for key, value in copy.items():
