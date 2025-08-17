@@ -110,11 +110,21 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
 
     # Prepare ingredient list for ingredient-led style
     ing_names: List[str] = []
+    ing_detail_lines: List[str] = []
     try:
         for i in cfg.get("formulation", {}).get("key_ingredients", []):
             name = i.get("name")
             if name:
                 ing_names.append(name)
+                # include brief benefit summary if available
+                try:
+                    benefits = i.get('benefits')
+                    if isinstance(benefits, list) and benefits:
+                        ing_detail_lines.append(f"- {name}: " + "; ".join(benefits[:3]))
+                    else:
+                        ing_detail_lines.append(f"- {name}")
+                except Exception:
+                    ing_detail_lines.append(f"- {name}")
     except Exception:
         pass
     if not ing_names:
@@ -124,9 +134,13 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
             if isinstance(raw_list, list):
                 # strip leading dashes like "- Lustriva (clinical support)"
                 ing_names = [str(x).lstrip('- ').split('(')[0].strip() for x in raw_list]
+                for x in raw_list:
+                    txt = str(x).lstrip('- ').strip()
+                    ing_detail_lines.append(f"- {txt}")
         except Exception:
             pass
     ingredients_list = ", ".join([n for n in ing_names if n])
+    ingredients_detail_block = "\n".join(ing_detail_lines)
 
     # If ingredient-led selected, enrich instruction with ingredient roster
     if style == 'ingredient-led' and ingredients_list:
@@ -167,6 +181,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         audience=strategy.get("audience", ""),
         angle_name=angles_text,
         ingredients_list=ingredients_list,
+        ingredients_detail_block=ingredients_detail_block,
         template_requirements_block=tr_block,
         output_fields_csv=output_fields_csv or '"#HEADLINE": "…"',
         target_count=target_per_angle,

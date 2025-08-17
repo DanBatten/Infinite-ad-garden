@@ -23,6 +23,9 @@ CLAIMS_USER = """You are a senior paid social copywriter. Generate creative ad c
 
 - Ingredients (for ingredient-led style): {ingredients_list}
 
+[INGREDIENT DETAILS]
+{ingredients_detail_block}
+
 [TEMPLATE REQUIREMENTS]
 {template_requirements_block}
 
