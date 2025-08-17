@@ -784,12 +784,12 @@ function existingVariantCount(prefix = "Ad/") {
   return figma.currentPage.findAll(n => n.type === "FRAME" && n.name.startsWith(prefix)).length;
 }
 
-function ensureBatchFrame(jobId, template, cols = 5, rows = 6, gap = 120, pad = gap) {
+function ensureBatchFrame(batchName, template, cols = 5, rows = 6, gap = 120, pad = gap) {
   const page = figma.currentPage;
-  let batch = page.findOne(n => n.type === "FRAME" && n.name === `Batch/${jobId}`);
+  let batch = page.findOne(n => n.type === "FRAME" && n.name === batchName);
   if (!batch) {
     batch = figma.createFrame();
-    batch.name = `Batch/${jobId}`;
+    batch.name = batchName;
     const w = (cols * template.width) + ((cols - 1) * gap) + (pad * 2);
     const h = (rows * template.height) + ((rows - 1) * gap) + (pad * 2);
     batch.resizeWithoutConstraints(w, h);
@@ -1213,7 +1213,8 @@ figma.ui.onmessage = async (msg) => {
       const brandName = (job && job.brand) ? String(job.brand).trim() : "Brand";
       const version = (templateVersion || '01');
       const varLabel = (Array.isArray(variations) && variations.length > 0) ? variations.join('+') : 'all';
-      const batchName = `Batch/${brandName}-${cleanTemplateName}-v${version}-${varLabel}-${job.job_id || jobId}_run${sessionRunCounter}`;
+      const style = (filteredVariants[0] && filteredVariants[0].style) ? filteredVariants[0].style : (job.claim_style || 'style');
+      const batchName = `${brandName}-${cleanTemplateName}-${style}-v${version}-${varLabel}-${job.job_id || jobId}_run${sessionRunCounter}`;
 
       // Reset per-batch chosen images set to encourage diversity within this batch
       try { BATCH_CHOSEN_IMAGES = new Set(); } catch (e) {}
@@ -1227,7 +1228,7 @@ figma.ui.onmessage = async (msg) => {
       }
       figma.currentPage.selection = [batch];
       figma.viewport.scrollAndZoomIntoView([batch]);
-      figma.notify(`Built ${i} variants into Batch/${job.job_id || jobId}_run${sessionRunCounter}`);
+      figma.notify(`Built ${i} variants into ${batchName}`);
     } else {
       const startIndex = existingVariantCount("Ad/");
       sessionRunCounter++; // Increment counter for unique frame names
