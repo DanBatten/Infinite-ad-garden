@@ -10,7 +10,6 @@ CLAIMS_USER = """You are a senior paid social copywriter. Generate creative ad c
   - Audience: {audience}
   - Personality/Tone: {tone}
   - Positioning: {positioning}
-  - Proof assets (for Social Proof style): {proof_assets}
   - Compliance: Never use “treat,” “cure,” or “prevent” language; results may vary.
 
 - Creative Guidelines (from training docs):
