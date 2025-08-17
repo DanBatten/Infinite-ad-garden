@@ -91,7 +91,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
             "Keep language consumer-friendly (avoid jargon); frame as part of a holistic blend (no miracle claims). "
             "Where appropriate, nod to support (e.g., clinically studied/trusted by experts). "
             "Stay compliant: use 'supports/helps/nourishes'; never disease/treat/cure/prevent. "
-            "Prefer hooks: Solution-First, Stat/Authority, Why-Explainer. Keep 4–10 words; headline-testable."
+            "Prefer hooks: Solution-First, Stat/Authority, Why-Explainer."
         )
     }
     
