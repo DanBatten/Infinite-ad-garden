@@ -650,14 +650,28 @@ async function resolveFontOrNull(family, style) {
     if (FAMILY_ALIASES[normalizedFamily]) {
       normalizedFamily = FAMILY_ALIASES[normalizedFamily];
     }
+    // Also map common typography synonyms
+    const STYLE_SYNONYMS = {
+      bold: ["bold","demibold","semibold","semi bold","demi bold"],
+      regular: ["regular","book","roman","normal"],
+      black: ["black","heavy","extrabold","extra bold"],
+    };
+    function synonymMatches(a, b){
+      const na = norm(a), nb = norm(b);
+      if (na===nb) return true;
+      for (const arr of Object.values(STYLE_SYNONYMS)){
+        if (arr.includes(na) && arr.includes(nb)) return true;
+      }
+      return false;
+    }
     
     // helper: candidate style order by desired style (nearest-first)
     const buildStyleCandidates = (desired) => {
       const s = norm(desired || "");
-      if (s === "bold") return ["Bold","Semibold","DemiBold","Medium","Black","Heavy","ExtraBold"]; 
+      if (s === "bold") return ["Bold","Semibold","DemiBold","Medium","Regular","Book","Roman","Black","Heavy","ExtraBold"]; 
       if (s === "semibold" || s === "demibold") return ["SemiBold","DemiBold","Bold","Medium","Regular"]; 
       if (s === "medium") return ["Medium","SemiBold","Bold","Regular"]; 
-      if (s === "black" || s === "heavy" || s === "extrabold") return ["Black","Heavy","ExtraBold","Bold","SemiBold"]; 
+      if (s === "black" || s === "heavy" || s === "extrabold") return ["Black","Heavy","ExtraBold","Bold","SemiBold","Medium","Regular"]; 
       if (s === "light" || s === "thin") return ["Light","Book","Regular"]; 
       if (s === "book" || s === "roman" || s === "normal" || s === "regular") return ["Regular","Book","Roman","Normal"]; 
       return [desired];
@@ -666,7 +680,7 @@ async function resolveFontOrNull(family, style) {
     // Find exact match first
     for (const font of fontIndex) {
       if (norm(font.fontName.family) === normalizedFamily && 
-          norm(font.fontName.style) === normalizedStyle) {
+          (norm(font.fontName.style) === normalizedStyle || synonymMatches(font.fontName.style, style))) {
         return font.fontName;
       }
     }
