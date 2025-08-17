@@ -70,7 +70,7 @@ def _ing_str(formulation: Dict[str, Any]) -> str:
         parts.append(f"{i['name']}{dose} ({i.get('evidence_level','n/a')})")
     return ", ".join(parts)
 
-def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, style: str = 'balanced') -> Dict[str, List[Dict[str, str]]]:
+def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, style: str = 'balanced', template_requirements: Dict[str, Any] = None) -> Dict[str, List[Dict[str, str]]]:
     """
     Returns {angle_id: [ {text, style, angle_id}, ... ] } with de-dupe per angle.
     Now style-first approach to avoid angle/style conflicts.
@@ -102,6 +102,28 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     angles_text = ", ".join([a.get('name','') for a in angles]) if angles else "beauty-from-within, busy-lifestyle, scientific-backing"
 
     # We will ask for exactly target_per_angle claims total
+    # Build template requirements block and output fields for single-pass generation
+    tr_block = ""
+    output_fields_csv = ""
+    if template_requirements and template_requirements.get('elements'):
+        lines: List[str] = []
+        out_fields: List[str] = []
+        for el in template_requirements.get('elements', []):
+            name = el.get('name', '')
+            max_chars = el.get('max_chars', 100)
+            desc = el.get('description', '')
+            if name:
+                lines.append(f"- {name}: max {max_chars} chars — {desc}")
+                out_fields.append(f'"{name}": "…"')
+        # Include prompt guidance if available
+        guidance = ""
+        if isinstance(template_requirements, dict) and template_requirements.get('metadata'):
+            guidance = template_requirements['metadata'].get('prompt_guidance', '')
+        if guidance:
+            lines.append(f"- Guidance: {guidance}")
+        tr_block = "\n".join(lines)
+        output_fields_csv = ",\n      ".join(out_fields)
+
     user = CLAIMS_USER.format(
         brand_name=brand.get("name",""),
         tagline=brand.get("tagline",""),
@@ -110,6 +132,8 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
         angle_name=angles_text,
+        template_requirements_block=tr_block,
+        output_fields_csv=output_fields_csv or '"#HEADLINE": "…"',
         target_count=target_per_angle,
         style_instruction=style_instruction,
         style=style,

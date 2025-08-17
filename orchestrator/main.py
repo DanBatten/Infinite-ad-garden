@@ -162,8 +162,8 @@ def main():
     if use_llm:
         try:
             print("[IAG] LLM claims by angle…", flush=True)
-            # Request exactly claim_count total claims from the generator
-            angle_map = generate_claims_by_angle(cfg, target_per_angle=claim_count, style=claim_style)
+            # Request exactly claim_count total claims from the generator, including template fields
+            angle_map = generate_claims_by_angle(cfg, target_per_angle=claim_count, style=claim_style, template_requirements=None)
 
             # accept all non-empty claims without compliance filtering/rewrite
             allowed_pool: List[Dict[str, str]] = []
@@ -218,7 +218,7 @@ def main():
         tmpl_name = f"Template/{strategy['format']}"  # e.g. Template/1080x1440
         print(f"[IAG] Using default template: {tmpl_name}", flush=True)
 
-    # Get template requirements for copy expansion
+    # Get template requirements for prompt (single-pass)
     template_requirements = None
     template_variations = []
     if template_name:
@@ -266,49 +266,35 @@ def main():
     body_family, body_style       = _split_family_and_style(body_raw)
     _, cta_style                  = _split_family_and_style(cta_raw)
 
-    for idx, claim in enumerate(claims):
+    # Re-run first call with template requirements now that we have them
+    if use_llm:
         try:
-            if use_llm:
-                try:
-                    copy = expand_copy(brand, claim, strategy, template_requirements)
-                    print(f"[IAG] DEBUG: expand_copy returned: {copy}", flush=True)
-                except Exception as e:
-                    print(f"[IAG] DEBUG: expand_copy failed: {e}", flush=True)
-                    # Fallback that matches template requirements if available
-                    copy = {}
-                    if template_requirements and template_requirements.get("elements"):
-                        for el in template_requirements.get("elements", []):
-                            name = el.get("name") or ""
-                            if not name:
-                                continue
-                            # Provide minimal, safe defaults per required field
-                            # If the field looks like a headline, use claim.
-                            if "head" in name.lower():
-                                copy[name] = f"{claim}."
-                            # If looks like message text
-                            elif "message" in name.lower() or "msg" in name.lower():
-                                copy[name] = claim
-                            # Value prop style
-                            elif "value" in name.lower():
-                                copy[name] = "• " + claim
-                            # CTA-like
-                            elif "cta" in name.lower() or "call" in name.lower():
-                                copy[name] = "Learn More"
-                            else:
-                                copy[name] = claim
-                    else:
-                        # Generic fallback
-                        copy = {
-                            "headline": f"{claim}.",
-                            "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
-                            "cta": "Learn More",
-                        }
+            print("[IAG] Regenerating claims with template requirements (single-pass)…", flush=True)
+            angle_map = generate_claims_by_angle(cfg, target_per_angle=claim_count, style=claim_style, template_requirements=template_requirements)
+            # Flatten to list preserving counts
+            claims_structured = []
+            for items in angle_map.values():
+                for it in items:
+                    claims_structured.append(it)
+            claims_structured = claims_structured[:n]
+        except Exception:
+            claims_structured = []
+    else:
+        claims_structured = []
+
+    for idx, item in enumerate(claims_structured or []):
+        try:
+            # Build copy dict directly from structured claim item
+            copy = {}
+            if template_requirements and template_requirements.get("elements"):
+                for el in template_requirements.get("elements", []):
+                    name = el.get("name")
+                    if not name:
+                        continue
+                    copy[name] = item.get(name) or item.get(name.lower()) or item.get(name.strip('#').lower()) or ""
             else:
-                copy = {
-                    "headline": f"{claim}.",
-                    "value_props": ["Natural ingredients", "Clinically formulated", "Proven results", "Safe & effective"],
-                    "cta": "Learn More",
-                }
+                # headline-only fallback
+                copy["#HEADLINE"] = item.get("#HEADLINE") or item.get("headline") or (item.get("claim") or "")
 
             # If we have template variations, create variants for each variation
             print(f"[IAG] DEBUG: template_variations count: {len(template_variations) if template_variations else 0}", flush=True)
@@ -321,7 +307,7 @@ def main():
                     variant = {
                         "id": str(uuid.uuid4())[:8],
                         "layout": f"{tmpl_name}-{variation.name}",
-                        "claim": claim,
+                        "claim": item.get("claim") or "",
                         "logo_url": brand["logo_url"],
                         "palette": brand["palette"],
                         "type": {
@@ -351,7 +337,7 @@ def main():
                 variant = {
                     "id": str(uuid.uuid4())[:8],
                     "layout": tmpl_name,
-                    "claim": claim,
+                    "claim": item.get("claim") or "",
                     "logo_url": brand["logo_url"],
                     "palette": brand["palette"],
                     "type": {

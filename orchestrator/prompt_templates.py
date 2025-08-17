@@ -21,6 +21,9 @@ CLAIMS_USER = """You are a senior paid social copywriter. Generate creative ad c
 - Selected Style: {style}
 - Style Instruction: {style_instruction}
 
+[TEMPLATE REQUIREMENTS]
+{template_requirements_block}
+
 - Angles to Rotate In:
   - {angle_name}
 
@@ -39,7 +42,8 @@ Output Format (single JSON object):
       "angle": "beauty-from-within | busy-lifestyle | scientific-backing",
       "hook_type": "Solution-First | Problem (Negative) | Social Proof | FOMO/Scarcity | Question | Pattern Interrupt | Offer",
       "voice_variant": "first_person | why_explainer | stat_hook",
-      "compliance_note": ""
+      "compliance_note": "",
+      {output_fields_csv}
     }}
   ]
 }}
