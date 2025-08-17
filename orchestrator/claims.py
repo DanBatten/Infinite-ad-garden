@@ -146,7 +146,13 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     if ref_docs:
         user = f"""[REFERENCE DOCS]\n{ref_docs}\n\n[INSTRUCTION]\n{user}"""
     if _debug_enabled():
+        # Log the prompt plus an explicit resolved style instruction block for easy debugging
         _debug_log_prompt("CLAIMS", CLAIMS_SYSTEM, user)
+        try:
+            resolved = f"\n-- RESOLVED STYLE --\n{style_instruction}\n-- END STYLE --\n"
+            _debug_write("CLAIMS_STYLE", resolved)
+        except Exception:
+            pass
     out = llm_json(CLAIMS_SYSTEM, user) or {}
     seen: set = set()
     all_claims: List[Dict[str, str]] = []
