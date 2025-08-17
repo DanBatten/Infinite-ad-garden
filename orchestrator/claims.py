@@ -101,6 +101,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     # Build angles text for prompt readability
     angles_text = ", ".join([a.get('name','') for a in angles]) if angles else "beauty-from-within, busy-lifestyle, scientific-backing"
 
+    # We will ask for exactly target_per_angle claims total
     user = CLAIMS_USER.format(
         brand_name=brand.get("name",""),
         tagline=brand.get("tagline",""),
@@ -109,7 +110,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
         angle_name=angles_text,
-        target_count=target_per_angle * len(angles) if angles else target_per_angle,
+        target_count=target_per_angle,
         style_instruction=style_instruction,
         style=style,
     )

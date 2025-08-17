@@ -146,7 +146,7 @@ def main():
     
     # Override config values with API parameters
     n = claim_count  # Use the actual requested count instead of hardcoded 30
-    per_angle = max(claim_count // 4, 2)  # Distribute claims across angles
+    per_angle = max(claim_count // 4, 2)  # legacy calc (not used for target now)
     
     print(f"[IAG] Requested: {claim_count} claims, style: {claim_style}", flush=True)
     if template_name:
@@ -162,7 +162,8 @@ def main():
     if use_llm:
         try:
             print("[IAG] LLM claims by angle…", flush=True)
-            angle_map = generate_claims_by_angle(cfg, target_per_angle=max(per_angle, 8), style=claim_style)
+            # Request exactly claim_count total claims from the generator
+            angle_map = generate_claims_by_angle(cfg, target_per_angle=claim_count, style=claim_style)
 
             # accept all non-empty claims without compliance filtering/rewrite
             allowed_pool: List[Dict[str, str]] = []
