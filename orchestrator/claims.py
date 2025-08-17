@@ -83,7 +83,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     style_instructions = {
         'benefit-focused': "ONLY BENEFIT-FOCUSED: Lead with the single most important benefit. Use 'you' language. No problem statements, no urgency, no proof.",
         'problem-solution': "ONLY PROBLEM–SOLUTION: Start with the problem in 3–6 words, then present Metra as the solution. No social proof, no urgency, no generic benefits-only lines.",
-        'social-proof': "ONLY SOCIAL PROOF: Center the line on validation—ratings, experts, review snippets, or volume. No problem framing, no urgency.",
+        'social-proof': "ONLY SOCIAL PROOF: Center the line on validation—ratings, experts, review snippets, or volume. Use explicit signals like 'Rated 4.9★', 'Trusted by 10,000+', 'Dermatologist-approved', '4.9/5 from 2,431 reviews'. No problem framing, no urgency.",
         'urgency-driven': "ONLY URGENCY-DRIVEN: Time/quantity triggers + action. Keep tasteful, avoid hype. No proof language, no problem framing.",
         'mixed-styles': "BLENDED: Hook + light problem + subtle proof + soft urgency, balanced in one line."
     }
@@ -102,6 +102,21 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     angles_text = ", ".join([a.get('name','') for a in angles]) if angles else "beauty-from-within, busy-lifestyle, scientific-backing"
 
     # We will ask for exactly target_per_angle claims total
+    # Extract proof assets summary for social-proof grounding
+    proof_assets = ""
+    try:
+        pa = (brand_profile.get('proof_assets') or {})
+        testis = ", ".join(pa.get('testimonials', [])[:3]) if isinstance(pa.get('testimonials'), list) else ""
+        experts = ", ".join(pa.get('experts', [])[:3]) if isinstance(pa.get('experts'), list) else ""
+        parts = []
+        if testis:
+            parts.append(f"Testimonials: {testis}")
+        if experts:
+            parts.append(f"Experts: {experts}")
+        proof_assets = "; ".join(parts)
+    except Exception:
+        proof_assets = ""
+
     user = CLAIMS_USER.format(
         brand_name=brand.get("name",""),
         tagline=brand.get("tagline",""),
@@ -110,6 +125,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
         angle_name=angles_text,
+        proof_assets=proof_assets,
         target_count=target_per_angle,
         style_instruction=style_instruction,
         style=style,
