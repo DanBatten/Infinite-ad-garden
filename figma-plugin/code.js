@@ -651,6 +651,18 @@ async function resolveFontOrNull(family, style) {
       normalizedFamily = FAMILY_ALIASES[normalizedFamily];
     }
     
+    // helper: candidate style order by desired style (nearest-first)
+    const buildStyleCandidates = (desired) => {
+      const s = norm(desired || "");
+      if (s === "bold") return ["Bold","Semibold","DemiBold","Medium","Black","Heavy","ExtraBold"]; 
+      if (s === "semibold" || s === "demibold") return ["SemiBold","DemiBold","Bold","Medium","Regular"]; 
+      if (s === "medium") return ["Medium","SemiBold","Bold","Regular"]; 
+      if (s === "black" || s === "heavy" || s === "extrabold") return ["Black","Heavy","ExtraBold","Bold","SemiBold"]; 
+      if (s === "light" || s === "thin") return ["Light","Book","Regular"]; 
+      if (s === "book" || s === "roman" || s === "normal" || s === "regular") return ["Regular","Book","Roman","Normal"]; 
+      return [desired];
+    };
+
     // Find exact match first
     for (const font of fontIndex) {
       if (norm(font.fontName.family) === normalizedFamily && 
@@ -659,11 +671,16 @@ async function resolveFontOrNull(family, style) {
       }
     }
     
-    // Find family match with any style
-    for (const font of fontIndex) {
-      if (norm(font.fontName.family) === normalizedFamily) {
-        return font.fontName;
+    // Prefer family match with closest style
+    const familyFonts = fontIndex.filter(f => norm(f.fontName.family) === normalizedFamily);
+    if (familyFonts.length) {
+      const candidates = buildStyleCandidates(style);
+      for (const cand of candidates) {
+        const hit = familyFonts.find(f => norm(f.fontName.style) === norm(cand));
+        if (hit) return hit.fontName;
       }
+      // last resort: return first family font
+      return familyFonts[0].fontName;
     }
 
     // Fuzzy family matching: includes/startsWith
