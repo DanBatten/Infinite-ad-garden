@@ -693,6 +693,16 @@ async function resolveFontOrNull(family, style) {
         const hit = familyFonts.find(f => norm(f.fontName.style) === norm(cand));
         if (hit) return hit.fontName;
       }
+      // Loose contains search for Bold/Regular, prefer non-italic
+      const want = norm(style || "");
+      if (want === "bold") {
+        const loose = familyFonts.find(f => /bold/i.test(f.fontName.style) && !/oblique|italic/i.test(f.fontName.style));
+        if (loose) return loose.fontName;
+      }
+      if (want === "regular") {
+        const loose = familyFonts.find(f => /regular|book|roman/i.test(f.fontName.style) && !/oblique|italic/i.test(f.fontName.style));
+        if (loose) return loose.fontName;
+      }
       // last resort: return first family font
       return familyFonts[0].fontName;
     }

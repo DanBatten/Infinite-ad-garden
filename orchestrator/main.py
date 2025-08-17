@@ -270,10 +270,10 @@ def main():
     body_family_json    = body_dict.get("family")    if isinstance(body_dict, dict)    else body_dict
     heading_style_json  = heading_dict.get("style")  if isinstance(heading_dict, dict) else None
     body_style_json     = body_dict.get("style")     if isinstance(body_dict, dict)    else None
-    # Allow brand.txt overrides if present
-    heading_raw = brand_txt_fonts.get("heading_font", heading_family_json)
-    body_raw    = brand_txt_fonts.get("body_font", body_family_json)
-    cta_raw     = brand_txt_fonts.get("cta_font", heading_raw)
+    # Allow brand.txt overrides if present (highest precedence)
+    heading_raw = brand_txt_fonts.get("heading_font") or heading_family_json
+    body_raw    = brand_txt_fonts.get("body_font")    or body_family_json
+    cta_raw     = brand_txt_fonts.get("cta_font")     or heading_raw
     heading_family, heading_style = _split_family_and_style(heading_raw)
     body_family, body_style       = _split_family_and_style(body_raw)
     # If JSON explicitly provided styles, prefer them over parsed styles
@@ -332,8 +332,8 @@ def main():
                         "type": {
                             "heading": heading_family or brand.get("type", {}).get("heading"),
                             "body": body_family or brand.get("type", {}).get("body"),
-                            "headingStyle": heading_style or "Regular",
-                            "bodyStyle": body_style or "Regular",
+                            "headingStyle": heading_style or heading_style_json or "Regular",
+                            "bodyStyle": body_style or body_style_json or "Regular",
                             "ctaStyle": cta_style or "Bold",
                         },
                         # Always set the template name we actually used
@@ -364,8 +364,8 @@ def main():
                     "type": {
                         "heading": heading_family or brand.get("type", {}).get("heading"),
                         "body": body_family or brand.get("type", {}).get("body"),
-                        "headingStyle": heading_style or "Regular",
-                        "bodyStyle": body_style or "Regular",
+                        "headingStyle": heading_style or heading_style_json or "Regular",
+                        "bodyStyle": body_style or body_style_json or "Regular",
                         "ctaStyle": cta_style or "Bold",
                     },
                     # Always set the template name we actually used
