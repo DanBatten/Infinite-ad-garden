@@ -180,21 +180,21 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
             pass
     out = llm_json(CLAIMS_SYSTEM, user) or {}
     seen: set = set()
-    all_claims: List[Dict[str, str]] = []
+    all_claims: List[Dict[str, Any]] = []
     
     for c in out.get("claims", []):
-        txt = (c.get("text") or "").strip()
-        if not txt:
+        claim_txt = (c.get("claim") or c.get("text") or "").strip()
+        if not claim_txt:
             continue
-        k = txt.lower()
+        k = claim_txt.lower()
         if k in seen:
             continue
         seen.add(k)
-        all_claims.append({
-            "text": txt,
-            "style": style,
-            "angle_id": "style_generated"  # Mark as style-generated, not angle-specific
-        })
+        # Keep the full structured item and ensure style is present
+        item = dict(c)
+        if not item.get("style"):
+            item["style"] = style
+        all_claims.append(item)
     
     # Distribute claims across angles if we have them
     if angles and all_claims:

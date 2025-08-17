@@ -275,6 +275,8 @@ def main():
             claims_structured = []
             for items in angle_map.values():
                 for it in items:
+                    # Ensure template metadata propagated if present
+                    it["template_name"] = tmpl_name
                     claims_structured.append(it)
             claims_structured = claims_structured[:n]
         except Exception:
