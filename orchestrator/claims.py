@@ -85,7 +85,14 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         'problem-solution': "ONLY PROBLEM–SOLUTION: Start with the problem in 3–6 words, then present Metra as the solution. No social proof, no urgency, no generic benefits-only lines.",
         'social-proof': "ONLY SOCIAL PROOF: Center the line on validation—ratings, experts, review snippets, or volume. Use explicit signals like 'Rated 4.9★', 'Trusted by 10,000+', 'Dermatologist-approved', '4.9/5 from 2,431 reviews'. No problem framing, no urgency.",
         'urgency-driven': "ONLY URGENCY-DRIVEN: Time/quantity triggers + action. Keep tasteful, avoid hype. No proof language, no problem framing.",
-        'mixed-styles': "BLENDED: Hook + light problem + subtle proof + soft urgency, balanced in one line."
+        'mixed-styles': "BLENDED: Hook + light problem + subtle proof + soft urgency, balanced in one line.",
+        'ingredient-led': (
+            "INGREDIENT-LED: Lead with the ingredient as hero; immediately connect it to a tangible beauty/wellness outcome. "
+            "Keep language consumer-friendly (avoid jargon); frame as part of a holistic blend (no miracle claims). "
+            "Where appropriate, nod to support (e.g., clinically studied/trusted by experts). "
+            "Stay compliant: use 'supports/helps/nourishes'; never disease/treat/cure/prevent. "
+            "Prefer hooks: Solution-First, Stat/Authority, Why-Explainer. Keep 4–10 words; headline-testable."
+        )
     }
     
     style_instruction = style_instructions.get(style, style_instructions['mixed-styles'])
@@ -100,6 +107,33 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
     brand_profile = load_brand_profile(brand.get("name", ""))
     # Build angles text for prompt readability
     angles_text = ", ".join([a.get('name','') for a in angles]) if angles else "beauty-from-within, busy-lifestyle, scientific-backing"
+
+    # Prepare ingredient list for ingredient-led style
+    ing_names: List[str] = []
+    try:
+        for i in cfg.get("formulation", {}).get("key_ingredients", []):
+            name = i.get("name")
+            if name:
+                ing_names.append(name)
+    except Exception:
+        pass
+    if not ing_names:
+        try:
+            # fallback from brand profile if available
+            raw_list = brand_profile.get('product_ingredients',{}).get('ingredients',[])
+            if isinstance(raw_list, list):
+                # strip leading dashes like "- Lustriva (clinical support)"
+                ing_names = [str(x).lstrip('- ').split('(')[0].strip() for x in raw_list]
+        except Exception:
+            pass
+    ingredients_list = ", ".join([n for n in ing_names if n])
+
+    # If ingredient-led selected, enrich instruction with ingredient roster
+    if style == 'ingredient-led' and ingredients_list:
+        style_instruction = style_instructions.get(style)
+        style_instruction = f"{style_instruction} Rotate across key ingredients: {ingredients_list}."
+    else:
+        style_instruction = style_instructions.get(style, style_instructions['mixed-styles'])
 
     # We will ask for exactly target_per_angle claims total
     # Build template requirements block and output fields for single-pass generation
@@ -132,6 +166,7 @@ def generate_claims_by_angle(cfg: Dict[str, Any], target_per_angle: int = 8, sty
         tone=brand.get("tone", ""),
         audience=strategy.get("audience", ""),
         angle_name=angles_text,
+        ingredients_list=ingredients_list,
         template_requirements_block=tr_block,
         output_fields_csv=output_fields_csv or '"#HEADLINE": "…"',
         target_count=target_per_angle,
