@@ -776,13 +776,16 @@ async function setText(node, value, desiredFamily = null, desiredStyle = "Regula
       }
     }
     
-    // Set the font first
-    if (workingFont) {
-      node.fontName = workingFont;
-    }
-    
-    // Now set the text content
+    // Set the text content then enforce font across the entire range
     node.characters = value || "";
+    if (workingFont) {
+      try {
+        // Apply to whole range to override existing range styles (e.g., Black)
+        node.setRangeFontName(0, node.characters.length, workingFont);
+      } catch (rangeErr) {
+        node.fontName = workingFont;
+      }
+    }
     console.log(`✅ Text set successfully: "${value}"`);
     
   } catch (error) {
