@@ -18,18 +18,13 @@ CLAIMS_USER = """You are a senior paid social copywriter. Generate creative ad c
   - Avoid jargon, all-caps spam, or fluff
   - Speak directly to one person (“you”)
 
-- Claim Style Instructions (match to selected style):
-  - Benefit-Focused: Highlight the main benefit clearly and aspirationally; show the win (“you get…”).
-  - Problem–Solution: State a relatable problem, resolve with the brand as the obvious solution.
-  - Social Proof: Use review language, volume, or authority (“Thousands trust…”, “Rated 4.9 stars”).
-  - Urgency-Driven: Emphasize timeliness or scarcity (“Today only,” “Selling fast”).
-  - Mixed Styles: Blend benefit, light problem, subtle proof, and urgency in one versatile claim.
+- Selected Style: {style}
+- Style Instruction: {style_instruction}
 
 - Angles to Rotate In:
   - {angle_name}
 
 Primary style to follow for this batch: {style}
-Style-specific guidance: {style_instruction}
 
 Task
 Generate EXACTLY {target_count} distinct ad claims in the selected style.
