@@ -790,11 +790,13 @@ function ensureBatchFrame(batchName, template, cols = 5, rows = 6, gap = 120, pa
   if (!batch) {
     batch = figma.createFrame();
     batch.name = batchName;
+    // mark as IAG batch so we can find it later regardless of naming convention
+    try { batch.setPluginData('iag-batch', '1'); } catch (e) {}
     const w = (cols * template.width) + ((cols - 1) * gap) + (pad * 2);
     const h = (rows * template.height) + ((rows - 1) * gap) + (pad * 2);
     batch.resizeWithoutConstraints(w, h);
-    // Calculate position based on existing batch frames
-    const existingBatches = page.findAll(n => n.type === "FRAME" && n.name && n.name.startsWith("Batch/"));
+    // Calculate position based on existing batch frames (by plugin data flag)
+    const existingBatches = page.findAll(n => n.type === "FRAME" && (n.getPluginData && n.getPluginData('iag-batch') === '1'));
     let xOffset = template.x + template.width + 200; // Default offset from template
     
     if (existingBatches.length > 0) {
@@ -1484,6 +1486,7 @@ figma.ui.onmessage = async (msg) => {
     try {
       const adFrames = figma.currentPage.findAll(node => 
         node.name && (node.name.startsWith("Ad/") || node.name.startsWith("Batch/"))
+        || (node.getPluginData && node.getPluginData('iag-batch') === '1')
       );
       
       for (const frame of adFrames) {
