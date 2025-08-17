@@ -8,9 +8,12 @@ class ImageMatcher {
     this.tagWeights = {
       // Category weights
       'lifestyle': 3,
-      'product': 2,
+      'product': 3,
+      'social': 2,
+      'ingredient': 3,
       'portrait': 2,
       'abstract': 1,
+      'closeup': 1.5,
       
       // Mood/Style weights
       'fitness': 2,
@@ -19,18 +22,28 @@ class ImageMatcher {
       'serene': 1.5,
       'empowering': 2,
       'natural': 1.5,
+      'dramatic': 1.5,
+      'vibey': 1.5,
       
       // Content weights
       'model': 2,
       'supplement_bottle': 2,
       'capsules': 1.5,
+      'ingredients': 1.5,
+      'flower': 1.2,
       'yoga_pose': 1.5,
       'hair_care': 1.5,
+      'hair': 1.5,
+      'skin': 1.5,
+      'nail': 1.5,
+      'nails': 1.5,
+      'gut': 1.5,
+      'nutrition': 1.2,
       
       // Context weights
       'product': 2,
       'background': 1,
-      'hero': 2,
+      'hero': 2.5,
       'supporting': 1
     };
   }
@@ -99,9 +112,25 @@ class ImageMatcher {
 
   // Extract tags from filename (e.g., "Lifestyle-fitness-model-product.png")
   extractTagsFromFilename(filename) {
-    // Remove file extension and split by dashes
+    // Remove file extension
     const cleanName = filename.replace(/\.[^/.]+$/, '');
-    const tags = cleanName.split('-').map(tag => tag.toLowerCase());
+    const raw = cleanName.split('-');
+    const tags = [];
+    for (let t of raw) {
+      if (!t) continue;
+      let token = String(t).toLowerCase();
+      // ignore simple index suffixes like h05, n02, g01, sf04
+      if (/^(h|n|g|sf)\d+$/i.test(token)) continue;
+      tags.push(token);
+      // also split on underscores to capture sub-tags (e.g., hair_care -> hair, care)
+      if (token.indexOf('_') !== -1) {
+        const subtokens = token.split('_').filter(Boolean);
+        for (const st of subtokens) {
+          // avoid re-adding the same combined token
+          if (!tags.includes(st)) tags.push(st);
+        }
+      }
+    }
     return tags;
   }
 
@@ -145,11 +174,20 @@ class ImageMatcher {
       'product': ['supplement', 'capsule', 'bottle', 'ingredient', 'formula', 'blend', 'solution'],
       'ingredients': ['ingredient', 'extract', 'natural', 'organic', 'pure', 'clean', 'authentic'],
       'pills': ['capsule', 'pill', 'supplement', 'tablet', 'dose'],
+      'saffron': ['saffron', 'affron', 'calm', 'balance', 'mood', 'sleep'],
+      'affron': ['saffron', 'calm', 'balance', 'mood', 'sleep'],
+      'chromax': ['chromium', 'metabolic', 'metabolism', 'glucose', 'cravings', 'energy'],
+      'de111': ['probiotic', 'gut', 'digest', 'digestive', 'microbiome', 'immune'],
+      'lustriva': ['biotin', 'silica', 'hair', 'skin', 'nails', 'elasticity'],
+      'biotin': ['hair', 'nails', 'strength'],
+      'hyaluronic': ['hydrate', 'hydration', 'moisture', 'plump'],
+      'collagen': ['elasticity', 'firm', 'wrinkle', 'supple', 'skin'],
       
       // Mood & Style
       'vibey': ['vibrant', 'energetic', 'dynamic', 'lively', 'exciting', 'powerful', 'transformative'],
       'sophisticated': ['elegant', 'premium', 'luxury', 'refined', 'classy', 'upscale', 'high-end'],
       'natural': ['organic', 'pure', 'clean', 'authentic', 'earth', 'botanical', 'plant-based'],
+      'dramatic': ['bold', 'striking', 'high-contrast'],
       
       // Fitness & Health
       'fitness': ['fit', 'healthy', 'strong', 'active', 'workout', 'exercise', 'energy', 'vitality'],
@@ -157,10 +195,11 @@ class ImageMatcher {
       
       // Model & Person
       'model': ['person', 'woman', 'lady', 'individual', 'you', 'your', 'self'],
+      'hair': ['hair', 'locks', 'tresses', 'mane', 'follicle'],
+      'nail': ['nail', 'manicure', 'polish'],
+      'skin': ['skin', 'complexion', 'dermis', 'epidermis', 'texture'],
       
       // Specific Benefits
-      'hair': ['hair', 'locks', 'tresses', 'mane', 'follicle'],
-      'skin': ['skin', 'complexion', 'dermis', 'epidermis', 'texture'],
       'mood': ['mood', 'emotion', 'feeling', 'happiness', 'joy', 'confidence'],
       'energy': ['energy', 'vitality', 'strength', 'power', 'boost', 'recharge']
     };
@@ -184,7 +223,7 @@ class ImageMatcher {
     // Beauty/Wellness headlines get bonus for lifestyle/product images
     if (headline.includes('glow') || headline.includes('radiant') || headline.includes('beauty') || 
         headline.includes('skin') || headline.includes('transform') || headline.includes('nourish')) {
-      if (imageTags.includes('lifestyle') || imageTags.includes('product') || imageTags.includes('ingredients')) {
+      if (imageTags.includes('lifestyle') || imageTags.includes('product') || imageTags.includes('ingredients') || imageTags.includes('model')) {
         bonus += 2;
       }
     }
@@ -199,8 +238,8 @@ class ImageMatcher {
     
     // Natural/Organic headlines get bonus for natural/ingredient images
     if (headline.includes('natural') || headline.includes('organic') || headline.includes('pure') || 
-        headline.includes('ingredient') || headline.includes('extract')) {
-      if (imageTags.includes('natural') || imageTags.includes('ingredients') || imageTags.includes('vibey')) {
+        headline.includes('ingredient') || headline.includes('extract') || headline.includes('saffron') || headline.includes('biotin') || headline.includes('collagen') || headline.includes('hyaluronic') || headline.includes('chromax')) {
+      if (imageTags.includes('natural') || imageTags.includes('ingredients') || imageTags.includes('vibey') || imageTags.includes('flower')) {
         bonus += 2;
       }
     }
