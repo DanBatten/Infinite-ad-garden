@@ -206,6 +206,7 @@ def main():
         claims = (bases * ((n//len(bases))+1))[:n]
 
     print("[IAG] Claims:", len(claims), flush=True)
+    print(f"[IAG] Typography chosen -> heading: {heading_family} / {heading_style}, body: {body_family} / {body_style}", flush=True)
 
     # ---- VARIANTS
     variants = []

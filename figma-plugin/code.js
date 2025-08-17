@@ -645,6 +645,7 @@ async function resolveFontOrNull(family, style) {
   
   try {
     const fontIndex = await getFontIndex();
+    console.log(`[Fonts] Requested family/style => ${family} / ${style}`);
     let normalizedFamily = norm(family);
     const normalizedStyle = norm(style);
     if (FAMILY_ALIASES[normalizedFamily]) {
@@ -687,6 +688,9 @@ async function resolveFontOrNull(family, style) {
     
     // Prefer family match with closest style
     const familyFonts = fontIndex.filter(f => norm(f.fontName.family) === normalizedFamily);
+    if (familyFonts.length) {
+      console.log(`[Fonts] Available styles for ${family}:`, Array.from(new Set(familyFonts.map(f => f.fontName.style))));
+    }
     if (familyFonts.length) {
       const candidates = buildStyleCandidates(style);
       for (const cand of candidates) {
