@@ -205,8 +205,7 @@ def main():
         bases = _fallback_claims_from_brand(brand)
         claims = (bases * ((n//len(bases))+1))[:n]
 
-    print("[IAG] Claims:", len(claims), flush=True)
-    print(f"[IAG] Typography chosen -> heading: {heading_family} / {heading_style}, body: {body_family} / {body_style}", flush=True)
+    # Typography selection happens after claims; move log below once computed
 
     # ---- VARIANTS
     variants = []
@@ -283,6 +282,8 @@ def main():
     if body_style_json:
         body_style = body_style_json
     _, cta_style                  = _split_family_and_style(cta_raw)
+
+    print(f"[IAG] Typography chosen -> heading: {heading_family} / {heading_style}, body: {body_family} / {body_style}", flush=True)
 
     # Re-run first call with template requirements now that we have them
     if use_llm:
